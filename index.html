@@ -41,7 +41,7 @@
         const singleSound = document.getElementById('single-sound');
         const centerBtn = document.getElementById('center-button');
         
-        let angle = 0, velocity = 0, friction = 0.995;
+        let angle = 0, velocity = 0, friction = 0.997;
         let hasClicked = false, pressStartTime = 0;
         let ignorePegs = false; // Variable para evitar la vibración
         
@@ -77,7 +77,7 @@
                     // Reactivamos los topes tras 300ms
                     setTimeout(() => { ignorePegs = false; }, 300);
                 } else {
-                    velocity *= 0.97;
+                    velocity *= 0.99;
                     clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
                     
                     if (!hasClicked) {
