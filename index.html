@@ -7,29 +7,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
     
     <style>
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #111; color: #fff; overflow-x: hidden;
-        }
-        .vegas-title {
-            font-family: 'Monoton', cursive; text-align: center; font-size: 4rem; margin: 20px 0;
-            text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff0080, 0 0 30px #ff0080, 0 0 40px #ff0080;
-        }
-        .roulette-container {
-            position: relative; width: 100%; display: flex; flex-direction: column; align-items: center;
-        }
-        #roulette-image {
-            width: 100%; max-width: 800px; height: auto; transform-origin: center center;
-        }
-        #clapper-container {
-            position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%);
-            transform-origin: top center; z-index: 10;
-        }
-        #clapper-image { width: 30px; height: auto; }
-        #puller {
-            width: 50px; height: 100px; background-color: #d32f2f; border-radius: 10px;
-            position: absolute; bottom: -50px; cursor: pointer;
-        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #111; color: #fff; overflow-x: hidden; }
+        .vegas-title { font-family: 'Monoton', cursive; text-align: center; font-size: 4rem; margin: 20px 0; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff0080, 0 0 30px #ff0080, 0 0 40px #ff0080; }
+        .roulette-container { position: relative; width: 100%; max-width: 800px; margin: 60px auto 0 auto; }
+        #roulette-image { width: 100%; height: auto; display: block; transform-origin: center center; }
+        #center-button { position: absolute; top: 50%; left: 50%; width: 15%; height: 15%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; z-index: 20; }
+        #clapper-container { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); transform-origin: top center; z-index: 10; }
+        #clapper-image { width: 30px; height: auto; display: block; }
     </style>
 </head>
 <body>
@@ -39,49 +23,61 @@
     </header>
 
     <main class="roulette-container">
-        <!-- Ruta relativa a la ruleta -->
-        <img src="https://lupargraf.github.io/acme/ruleta.png" alt="Ruleta" id="roulette-image">
-        
+        <img src="ruleta.png" alt="Ruleta" id="roulette-image">
+        <div id="center-button"></div>
         <div id="clapper-container">
-            <!-- Ruta relativa a la lengüeta -->
-            <img src="https://lupargraf.github.io/acme/lengueta.png" alt="Lengüeta" id="clapper-image">
+            <img src="lengueta2.png" alt="Lengüeta" id="clapper-image">
         </div>
-        
-        <div id="puller"></div>
     </main>
 
-    <!-- Ruta relativa al sonido -->
-    <audio id="click-sound" src="https://lupargraf.github.io/acme/Single-Click.mp3" preload="auto"></audio>
+    <!-- Ambos audios cargados -->
+    <audio id="loop-sound" src="clicks.mp3" preload="auto"></audio>
+    <audio id="single-sound" src="Single-Click.mp3" preload="auto"></audio>
 
     <script>
         const roulette = document.getElementById('roulette-image');
         const clapper = document.getElementById('clapper-container');
-        const clickSound = document.getElementById('click-sound');
+        const loopSound = document.getElementById('loop-sound');
+        const singleSound = document.getElementById('single-sound');
+        const centerBtn = document.getElementById('center-button');
         
         let angle = 0, velocity = 0, friction = 0.985;
-        let isDragging = false, startY = 0, hasClicked = false;
-        const degreesPerSegment = 30;
-
-        document.getElementById('puller').addEventListener('mousedown', (e) => { isDragging = true; startY = e.clientY; });
+        let hasClicked = false, pressStartTime = 0;
         
-        window.addEventListener('mousemove', (e) => { if (!isDragging) return; });
+        const degreesPerSegment = 360 / 13; 
+        const halfSegment = degreesPerSegment / 2;
 
-        window.addEventListener('mouseup', (e) => {
-            if (!isDragging) return; isDragging = false;
-            let pullDistance = Math.max(0, e.clientY - startY);
-            velocity = Math.min(pullDistance / 10, 20);
-            if (velocity > 0) requestAnimationFrame(spin);
+        centerBtn.addEventListener('mousedown', () => { pressStartTime = Date.now(); });
+        
+        centerBtn.addEventListener('mouseup', () => {
+            let pressDuration = (Date.now() - pressStartTime) / 1000;
+            velocity = Math.min(pressDuration * 15, 40);
+            if (velocity > 0) {
+                loopSound.currentTime = 0;
+                loopSound.play().catch(() => {});
+                requestAnimationFrame(spin);
+            }
         });
 
         function spin() {
             angle += velocity;
-            let relativeAngle = angle % degreesPerSegment;
+            let relativeAngle = (angle + halfSegment) % degreesPerSegment;
             
-            if (relativeAngle < 3 || relativeAngle > 27) {
+            // Si vamos lento, paramos el sonido continuo
+            if (velocity < 4) {
+                loopSound.pause();
+            }
+
+            if (relativeAngle < 2.5 || relativeAngle > (degreesPerSegment - 2.5)) {
                 velocity *= 0.92;
-                clapper.style.transform = 'translateX(-50%) rotate(20deg)';
+                clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
+                
                 if (!hasClicked) {
-                    clickSound.currentTime = 0; clickSound.play().catch(() => {});
+                    // Solo suena el click individual si vamos lento
+                    if (velocity < 4) {
+                        singleSound.currentTime = 0;
+                        singleSound.play().catch(() => {});
+                    }
                     hasClicked = true;
                 }
             } else {
@@ -92,13 +88,21 @@
 
             roulette.style.transform = `rotate(${angle}deg)`;
 
-            if (velocity > 0.05) requestAnimationFrame(spin);
-            else snapToNearestNumber();
+            if (velocity > 0.05) {
+                requestAnimationFrame(spin);
+            } else {
+                loopSound.pause();
+                clapper.style.transform = 'translateX(-50%) rotate(0deg)';
+                checkNaturalStop();
+            }
         }
 
-        function snapToNearestNumber() {
-            angle = Math.round(angle / degreesPerSegment) * degreesPerSegment;
-            roulette.style.transform = `rotate(${angle}deg)`;
+        function checkNaturalStop() {
+            let relativeAngle = (angle + halfSegment) % degreesPerSegment;
+            if (relativeAngle < 3 || relativeAngle > (degreesPerSegment - 3)) {
+                velocity = (relativeAngle < degreesPerSegment / 2) ? -0.5 : 0.5;
+                requestAnimationFrame(spin);
+            }
         }
     </script>
 </body>
