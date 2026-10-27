@@ -39,16 +39,19 @@
     </header>
 
     <main class="roulette-container">
-        <img src="<unsafe_url>https://raw.githubusercontent.com/Lupargraf/acme/main/ruleta.png</unsafe_url>" alt="Ruleta" id="roulette-image">
+        <!-- Ruta relativa a la ruleta -->
+        <img src="ruleta.png" alt="Ruleta" id="roulette-image">
         
         <div id="clapper-container">
-            <img src="<unsafe_url>https://raw.githubusercontent.com/Lupargraf/acme/main/lengueta.png</unsafe_url>" alt="Lengüeta" id="clapper-image">
+            <!-- Ruta relativa a la lengüeta -->
+            <img src="lengueta.png" alt="Lengüeta" id="clapper-image">
         </div>
         
         <div id="puller"></div>
     </main>
 
-    <audio id="click-sound" src="<unsafe_url>https://raw.githubusercontent.com/Lupargraf/acme/main/Single-Click.mp3</unsafe_url>" preload="auto"></audio>
+    <!-- Ruta relativa al sonido -->
+    <audio id="click-sound" src="Single-Click.mp3" preload="auto"></audio>
 
     <script>
         const roulette = document.getElementById('roulette-image');
