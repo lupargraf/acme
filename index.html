@@ -41,8 +41,9 @@
         const singleSound = document.getElementById('single-sound');
         const centerBtn = document.getElementById('center-button');
         
-        let angle = 0, velocity = 0, friction = 0.985;
+        let angle = 0, velocity = 0, friction = 0.995;
         let hasClicked = false, pressStartTime = 0;
+        let ignorePegs = false; // Variable para evitar la vibración
         
         const degreesPerSegment = 360 / 13; 
         const halfSegment = degreesPerSegment / 2;
@@ -53,6 +54,7 @@
             let pressDuration = (Date.now() - pressStartTime) / 1000;
             velocity = Math.min(pressDuration * 15, 40);
             if (velocity > 0) {
+                ignorePegs = false;
                 loopSound.currentTime = 0;
                 loopSound.play().catch(() => {});
                 requestAnimationFrame(spin);
@@ -63,22 +65,28 @@
             angle += velocity;
             let relativeAngle = (angle + halfSegment) % degreesPerSegment;
             
-            // Si vamos lento, paramos el sonido continuo
-            if (velocity < 4) {
-                loopSound.pause();
-            }
+            if (velocity < 4) loopSound.pause();
 
-            if (relativeAngle < 2.5 || relativeAngle > (degreesPerSegment - 2.5)) {
-                velocity *= 0.92;
-                clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
+            // Solo comprobamos topes si no estamos en modo "ignorar"
+            if (!ignorePegs && (relativeAngle < 2.5 || relativeAngle > (degreesPerSegment - 2.5))) {
                 
-                if (!hasClicked) {
-                    // Solo suena el click individual si vamos lento
-                    if (velocity < 4) {
-                        singleSound.currentTime = 0;
-                        singleSound.play().catch(() => {});
+                if (Math.abs(velocity) < 0.4) {
+                    velocity = -velocity * 0.4; // Rebote suave
+                    ignorePegs = true;          // Ignoramos los topes un momento
+                    
+                    // Reactivamos los topes tras 300ms
+                    setTimeout(() => { ignorePegs = false; }, 300);
+                } else {
+                    velocity *= 0.97;
+                    clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
+                    
+                    if (!hasClicked) {
+                        if (velocity < 4) {
+                            singleSound.currentTime = 0;
+                            singleSound.play().catch(() => {});
+                        }
+                        hasClicked = true;
                     }
-                    hasClicked = true;
                 }
             } else {
                 velocity *= friction;
@@ -88,12 +96,11 @@
 
             roulette.style.transform = `rotate(${angle}deg)`;
 
-            if (velocity > 0.05) {
+            if (Math.abs(velocity) > 0.02) {
                 requestAnimationFrame(spin);
             } else {
                 loopSound.pause();
                 clapper.style.transform = 'translateX(-50%) rotate(0deg)';
-                checkNaturalStop();
             }
         }
 
