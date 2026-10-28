@@ -7,13 +7,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #111; color: #fff; overflow-x: hidden; }
-        .vegas-title { font-family: 'Monoton', cursive; text-align: center; font-size: 4rem; margin: 20px 0; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff0080, 0 0 30px #ff0080, 0 0 40px #ff0080; }
-        .roulette-container { position: relative; width: 100%; max-width: 800px; margin: 60px auto 0 auto; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: radial-gradient(circle, #800000 0%, #300000 100%); color: #fff; font-family: sans-serif; overflow-x: hidden; }
+        .vegas-title { font-family: 'Monoton', cursive; text-align: center; font-size: 3rem; margin: 10px 0; text-shadow: 0 0 5px #fff, 0 0 20px #ff0080; }
+        
+        .game-container { display: flex; width: 95%; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+        .left-side { width: 60%; position: relative; display: flex; justify-content: center; }
+        .right-side { width: 40%; padding-left: 20px; display: flex; flex-direction: column; }
+        
+        .roulette-wrapper { position: relative; width: 100%; max-width: 800px; }
         #roulette-image { width: 100%; height: auto; display: block; transform-origin: center center; }
         #center-button { position: absolute; top: 50%; left: 50%; width: 15%; height: 15%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; z-index: 20; }
         #clapper-container { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); transform-origin: top center; z-index: 10; }
         #clapper-image { width: 30px; height: auto; display: block; }
+
+        .mat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #0d3b17; padding: 15px; border: 3px solid #fff; border-radius: 5px; }
+        .mat-cell { position: relative; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; border-radius: 5px; }
+        .mat-cell.red { background-color: #b30000; }
+        .mat-cell.black { background-color: #1a1a1a; }
+        .mat-cell input { width: 90%; background: transparent; border: none; color: #fff; text-align: center; font-size: 0.9rem; }
+        .mat-cell input::placeholder { color: #aaa; }
+        .input-top { position: absolute; top: 5px; }
+        .input-bottom { position: absolute; bottom: 5px; }
+
+        #winners-section { margin-top: 20px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; min-height: 100px; }
+        .winner-header-container { display: flex; justify-content: space-between; align-items: center; font-family: 'Monoton', cursive; color: #ffd700; font-size: 1.5rem; }
+        .winners-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -22,15 +40,27 @@
         <h1 class="vegas-title">CASINO: RULETA</h1>
     </header>
 
-    <main class="roulette-container">
-        <img src="ruleta.png" alt="Ruleta" id="roulette-image">
-        <div id="center-button"></div>
-        <div id="clapper-container">
-            <img src="lengueta2.png" alt="Lengüeta" id="clapper-image">
+    <div class="game-container">
+        <div class="left-side">
+            <div class="roulette-wrapper">
+                <img src="ruleta.png" alt="Ruleta" id="roulette-image">
+                <div id="center-button"></div>
+                <div id="clapper-container"><img src="lengueta2.png" alt="Lengüeta" id="clapper-image"></div>
+            </div>
         </div>
-    </main>
+        
+        <div class="right-side">
+            <div class="mat-grid" id="mat"></div>
+            <div id="winners-section">
+                <div class="winner-header-container">
+                    <span>GANADORES</span>
+                    <span id="winner-number"></span>
+                </div>
+                <div id="winners-list" class="winners-grid"></div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Ambos audios cargados -->
     <audio id="loop-sound" src="clicks.mp3" preload="auto"></audio>
     <audio id="single-sound" src="Single-Click.mp3" preload="auto"></audio>
 
@@ -41,75 +71,78 @@
         const singleSound = document.getElementById('single-sound');
         const centerBtn = document.getElementById('center-button');
         
-        let angle = 0, velocity = 0, friction = 0.997;
-        let hasClicked = false, pressStartTime = 0;
-        let ignorePegs = false; // Variable para evitar la vibración
+        const wheelOrder = [0, 5, 9, 12, 6, 3, 1, 8, 4, 11, 7, 2, 10];
+        const matOrder = [1, 2, 4, 3, 6, 5, 7, 8, 9, 11, 10, 12];
+        const colors = {0:'green', 1:'black', 2:'red', 3:'red', 4:'black', 5:'red', 6:'black', 7:'black', 8:'red', 9:'black', 10:'black', 11:'red', 12:'red'};
         
+        let angle = 0, velocity = 0, friction = 0.997, ignorePegs = false;
         const degreesPerSegment = 360 / 13; 
         const halfSegment = degreesPerSegment / 2;
 
+        const mat = document.getElementById('mat');
+        matOrder.forEach(num => {
+            const cell = document.createElement('div');
+            cell.className = `mat-cell ${colors[num]}`;
+            // Cambiado maxlength a 10
+            cell.innerHTML = `<input type="text" maxlength="10" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><input type="number" placeholder="0" class="input-bottom" id="bet-${num}">`;
+            mat.appendChild(cell);
+        });
+
         centerBtn.addEventListener('mousedown', () => { pressStartTime = Date.now(); });
-        
         centerBtn.addEventListener('mouseup', () => {
             let pressDuration = (Date.now() - pressStartTime) / 1000;
             velocity = Math.min(pressDuration * 15, 40);
-            if (velocity > 0) {
-                ignorePegs = false;
-                loopSound.currentTime = 0;
-                loopSound.play().catch(() => {});
-                requestAnimationFrame(spin);
-            }
+            if (velocity > 0) { ignorePegs = false; loopSound.play(); requestAnimationFrame(spin); }
         });
 
         function spin() {
             angle += velocity;
             let relativeAngle = (angle + halfSegment) % degreesPerSegment;
-            
             if (velocity < 4) loopSound.pause();
 
-            // Solo comprobamos topes si no estamos en modo "ignorar"
             if (!ignorePegs && (relativeAngle < 2.5 || relativeAngle > (degreesPerSegment - 2.5))) {
-                
                 if (Math.abs(velocity) < 0.4) {
-                    velocity = -velocity * 0.4; // Rebote suave
-                    ignorePegs = true;          // Ignoramos los topes un momento
-                    
-                    // Reactivamos los topes tras 300ms
+                    velocity = -velocity * 0.4; ignorePegs = true;
                     setTimeout(() => { ignorePegs = false; }, 300);
                 } else {
-                    velocity *= 0.99;
-                    clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
-                    
-                    if (!hasClicked) {
-                        if (velocity < 4) {
-                            singleSound.currentTime = 0;
-                            singleSound.play().catch(() => {});
-                        }
-                        hasClicked = true;
-                    }
+                    velocity *= 0.99; clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
+                    if (velocity < 4) singleSound.play();
                 }
-            } else {
-                velocity *= friction;
-                clapper.style.transform = 'translateX(-50%) rotate(0deg)';
-                hasClicked = false;
-            }
+            } else { velocity *= friction; clapper.style.transform = 'translateX(-50%) rotate(0deg)'; }
 
             roulette.style.transform = `rotate(${angle}deg)`;
-
-            if (Math.abs(velocity) > 0.02) {
-                requestAnimationFrame(spin);
-            } else {
-                loopSound.pause();
-                clapper.style.transform = 'translateX(-50%) rotate(0deg)';
-            }
+            if (Math.abs(velocity) > 0.02) requestAnimationFrame(spin);
+            else { loopSound.pause(); calculateWinners(); }
         }
 
-        function checkNaturalStop() {
-            let relativeAngle = (angle + halfSegment) % degreesPerSegment;
-            if (relativeAngle < 3 || relativeAngle > (degreesPerSegment - 3)) {
-                velocity = (relativeAngle < degreesPerSegment / 2) ? -0.5 : 0.5;
-                requestAnimationFrame(spin);
-            }
+        function calculateWinners() {
+            let normalizedAngle = (angle % 360 + 360) % 360;
+            let currentSegment = Math.round(normalizedAngle / degreesPerSegment) % 13;
+            if(currentSegment !== 0) currentSegment = 13 - currentSegment;
+            
+            const winNum = wheelOrder[currentSegment];
+            
+            document.getElementById('winner-number').innerText = `Salió el ${winNum}`;
+            const list = document.getElementById('winners-list');
+            list.innerHTML = '';
+            
+            if(winNum === 0) { list.innerHTML = '<div style="grid-column:span 4;font-size:2rem;color:red;text-align:center;">LA BANCA</div>'; return; }
+
+            matOrder.forEach(num => {
+                const jug = document.getElementById(`jug-${num}`).value;
+                const bet = parseFloat(document.getElementById(`bet-${num}`).value);
+                if(!jug || !bet) return;
+
+                let prize = 0;
+                const sameColor = colors[num] === colors[winNum];
+                const sameParity = (num % 2) === (winNum % 2);
+
+                if(num === winNum) prize = bet * 10;
+                else if(sameColor && sameParity) prize = bet * 2;
+                else if(sameColor || sameParity) prize = bet * 1;
+
+                list.innerHTML += `<div>${jug}: +$${prize}</div>`;
+            });
         }
     </script>
 </body>
