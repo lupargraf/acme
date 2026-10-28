@@ -24,14 +24,21 @@
         .mat-cell { position: relative; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; border-radius: 5px; }
         .mat-cell.red { background-color: #b30000; }
         .mat-cell.black { background-color: #1a1a1a; }
+        
         .mat-cell input { width: 90%; background: transparent; border: none; color: #fff; text-align: center; font-size: 0.9rem; }
-        .mat-cell input::placeholder { color: #aaa; }
+        .mat-cell.black input::placeholder { color: #444; }
+        .mat-cell.red input::placeholder { color: #cc6666; }
+        
         .input-top { position: absolute; top: 5px; }
         .input-bottom { position: absolute; bottom: 5px; }
 
         #winners-section { margin-top: 20px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; min-height: 100px; }
         .winner-header-container { display: flex; justify-content: space-between; align-items: center; font-family: 'Monoton', cursive; color: #ffd700; font-size: 1.5rem; }
-        .winners-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        
+        .winners-grid { display: flex; gap: 20px; margin-top: 10px; }
+        .winners-column { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        
+        #bank-result { margin-top: 15px; padding-top: 10px; border-top: 2px solid #fff; text-align: center; font-size: 1.2rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -57,6 +64,7 @@
                     <span id="winner-number"></span>
                 </div>
                 <div id="winners-list" class="winners-grid"></div>
+                <div id="bank-result"></div>
             </div>
         </div>
     </div>
@@ -83,8 +91,7 @@
         matOrder.forEach(num => {
             const cell = document.createElement('div');
             cell.className = `mat-cell ${colors[num]}`;
-            // Cambiado maxlength a 10
-            cell.innerHTML = `<input type="text" maxlength="10" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><input type="number" placeholder="0" class="input-bottom" id="bet-${num}">`;
+            cell.innerHTML = `<input type="text" maxlength="20" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><input type="number" placeholder="0" class="input-bottom" id="bet-${num}">`;
             mat.appendChild(cell);
         });
 
@@ -124,10 +131,25 @@
             
             document.getElementById('winner-number').innerText = `Salió el ${winNum}`;
             const list = document.getElementById('winners-list');
+            const bankResult = document.getElementById('bank-result');
             list.innerHTML = '';
+            bankResult.innerHTML = '';
             
-            if(winNum === 0) { list.innerHTML = '<div style="grid-column:span 4;font-size:2rem;color:red;text-align:center;">LA BANCA</div>'; return; }
+            let totalBets = 0;
+            let totalPrizes = 0;
 
+            matOrder.forEach(num => {
+                const bet = parseFloat(document.getElementById(`bet-${num}`).value);
+                if(bet) totalBets += bet;
+            });
+
+            if(winNum === 0) { 
+                list.innerHTML = '<div style="width:100%;font-size:2rem;color:red;text-align:center;">LA BANCA</div>'; 
+                bankResult.innerText = `LA BANCA GANA: $${totalBets}`;
+                return; 
+            }
+
+            let winners = [];
             matOrder.forEach(num => {
                 const jug = document.getElementById(`jug-${num}`).value;
                 const bet = parseFloat(document.getElementById(`bet-${num}`).value);
@@ -141,8 +163,35 @@
                 else if(sameColor && sameParity) prize = bet * 2;
                 else if(sameColor || sameParity) prize = bet * 1;
 
-                list.innerHTML += `<div>${jug}: +$${prize}</div>`;
+                totalPrizes += prize;
+                winners.push({ name: jug, prize: prize });
             });
+
+            winners.sort((a, b) => b.prize - a.prize);
+
+            const col1 = document.createElement('div');
+            col1.className = 'winners-column';
+            const col2 = document.createElement('div');
+            col2.className = 'winners-column';
+
+            winners.forEach((w, index) => {
+                const div = document.createElement('div');
+                div.innerText = `${w.name}: +$${w.prize}`;
+                if(index < 6) col1.appendChild(div);
+                else col2.appendChild(div);
+            });
+
+            list.appendChild(col1);
+            list.appendChild(col2);
+
+            const bankBalance = totalBets - totalPrizes;
+            if(bankBalance >= 0) {
+                bankResult.style.color = '#00ff00';
+                bankResult.innerText = `LA BANCA GANA: $${bankBalance}`;
+            } else {
+                bankResult.style.color = '#ff4444';
+                bankResult.innerText = `LA BANCA PIERDE: $${Math.abs(bankBalance)}`;
+            }
         }
     </script>
 </body>
