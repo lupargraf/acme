@@ -70,7 +70,6 @@
     </div>
 
     <script>
-        // --- CONFIGURACIÓN WEB AUDIO API ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let buffers = { loop: null, single: null };
         let loopSource = null;
@@ -110,7 +109,6 @@
                 isLoopPlaying = false;
             }
         }
-        // ----------------------------------
 
         const roulette = document.getElementById('roulette-image');
         const clapper = document.getElementById('clapper-container');
@@ -121,6 +119,7 @@
         const colors = {0:'green', 1:'black', 2:'red', 3:'red', 4:'black', 5:'red', 6:'black', 7:'black', 8:'red', 9:'black', 10:'black', 11:'red', 12:'red'};
         
         let angle = 0, velocity = 0, friction = 0.997, ignorePegs = false;
+        let hasClickedSingle = false; // NUEVO: Control para evitar repetición
         const degreesPerSegment = 360 / 13; 
         const halfSegment = degreesPerSegment / 2;
 
@@ -154,9 +153,17 @@
                     setTimeout(() => { ignorePegs = false; }, 300);
                 } else {
                     velocity *= 0.99; clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
-                    if (velocity < 4) playSingle();
+                    
+                    if (velocity < 4 && !hasClickedSingle) {
+                        playSingle();
+                        hasClickedSingle = true; // Bloqueamos hasta el siguiente tope
+                    }
                 }
-            } else { velocity *= friction; clapper.style.transform = 'translateX(-50%) rotate(0deg)'; }
+            } else { 
+                velocity *= friction; 
+                clapper.style.transform = 'translateX(-50%) rotate(0deg)';
+                hasClickedSingle = false; // Desbloqueamos al salir del tope
+            }
 
             roulette.style.transform = `rotate(${angle}deg)`;
             if (Math.abs(velocity) > 0.02) requestAnimationFrame(spin);
