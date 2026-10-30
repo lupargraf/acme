@@ -156,10 +156,17 @@
                 return; 
             }
 
-            // Obtener vecinos
+            // Obtener vecinos ignorando el 0 si está en medio
             const winIndex = wheelOrder.indexOf(winNum);
-            const prevNum = wheelOrder[(winIndex - 1 + 13) % 13];
-            const nextNum = wheelOrder[(winIndex + 1) % 13];
+            
+            let prevIndex = (winIndex - 1 + 13) % 13;
+            if(wheelOrder[prevIndex] === 0) prevIndex = (prevIndex - 1 + 13) % 13;
+            
+            let nextIndex = (winIndex + 1) % 13;
+            if(wheelOrder[nextIndex] === 0) nextIndex = (nextIndex + 1) % 13;
+
+            const prevNum = wheelOrder[prevIndex];
+            const nextNum = wheelOrder[nextIndex];
 
             let winners = [];
             matOrder.forEach(num => {
