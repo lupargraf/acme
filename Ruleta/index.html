@@ -25,7 +25,8 @@
         .mat-cell.red { background-color: #b30000; }
         .mat-cell.black { background-color: #1a1a1a; }
         
-        .mat-cell input { width: 90%; background: transparent; border: none; color: #fff; text-align: center; font-size: 0.9rem; }
+        .mat-cell input, .mat-cell select { width: 90%; background: transparent; border: none; color: #fff; text-align: center; font-size: 0.9rem; }
+        .mat-cell select { background-color: #333; border-radius: 3px; }
         .mat-cell.black input::placeholder { color: #444; }
         .mat-cell.red input::placeholder { color: #cc6666; }
         
@@ -33,7 +34,7 @@
         .input-bottom { position: absolute; bottom: 5px; }
 
         #winners-section { margin-top: 20px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; min-height: 100px; }
-        .winner-header-container { display: flex; justify-content: center; gap: 10px; align-items: center; font-family: 'Monoton', cursive; color: #ffd700; font-size: 2rem; }
+        .winner-header-container { display: flex; justify-content: center; gap: 10px; align-items: center; font-family: 'Monoton', cursive; color: #ffd700; font-size: 1.5rem; }
         
         .winners-grid { display: flex; gap: 20px; margin-top: 10px; }
         .winners-column { flex: 1; display: flex; flex-direction: column; gap: 5px; }
@@ -91,7 +92,13 @@
         matOrder.forEach(num => {
             const cell = document.createElement('div');
             cell.className = `mat-cell ${colors[num]}`;
-            cell.innerHTML = `<input type="text" maxlength="20" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><input type="number" placeholder="0" step="20" min="20" max="500" class="input-bottom" id="bet-${num}">`;
+            
+            let options = '<option value="0">0</option>';
+            for(let i = 20; i <= 500; i += 20) {
+                options += `<option value="${i}">${i}</option>`;
+            }
+
+            cell.innerHTML = `<input type="text" maxlength="20" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><select class="input-bottom" id="bet-${num}">${options}</select>`;
             mat.appendChild(cell);
         });
 
@@ -154,11 +161,6 @@
                 const jug = document.getElementById(`jug-${num}`).value;
                 let bet = parseFloat(document.getElementById(`bet-${num}`).value);
                 if(!jug || !bet) return;
-
-                // Validación de apuestas
-                if(bet < 20) bet = 20;
-                if(bet > 500) bet = 500;
-                bet = Math.round(bet / 20) * 20; // Forzar múltiplo de 20
 
                 let prize = 0;
                 const sameColor = colors[num] === colors[winNum];
