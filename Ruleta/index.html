@@ -156,6 +156,11 @@
                 return; 
             }
 
+            // Obtener vecinos
+            const winIndex = wheelOrder.indexOf(winNum);
+            const prevNum = wheelOrder[(winIndex - 1 + 13) % 13];
+            const nextNum = wheelOrder[(winIndex + 1) % 13];
+
             let winners = [];
             matOrder.forEach(num => {
                 const jug = document.getElementById(`jug-${num}`).value;
@@ -166,9 +171,15 @@
                 const sameColor = colors[num] === colors[winNum];
                 const sameParity = (num % 2) === (winNum % 2);
 
-                if(num === winNum) prize = bet * 10;
-                else if(sameColor && sameParity) prize = bet; // Recupera lo apostado
-                else if(sameColor || sameParity) prize = bet * 0.5; // La mitad
+                if(num === winNum) {
+                    prize = bet * 10;
+                } else if(num === prevNum || num === nextNum) {
+                    prize = bet * 2; // Vecinos ganan el doble
+                } else if(sameColor && sameParity) {
+                    prize = bet; // Recupera lo apostado
+                } else if(sameColor || sameParity) {
+                    prize = bet * 0.5; // La mitad
+                }
 
                 totalPrizes += prize;
                 winners.push({ name: jug, prize: prize });
