@@ -69,49 +69,14 @@
         </div>
     </div>
 
+    <audio id="loop-sound" src="clicks.mp3" preload="auto"></audio>
+    <audio id="single-sound" src="Single-Click.mp3" preload="auto"></audio>
+
     <script>
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let buffers = { loop: null, single: null };
-        let loopSource = null;
-        let isLoopPlaying = false;
-
-        function loadSound(url, key) {
-            fetch(url)
-                .then(response => response.arrayBuffer())
-                .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-                .then(buffer => { buffers[key] = buffer; });
-        }
-
-        loadSound('clicks.mp3', 'loop');
-        loadSound('Single-Click.mp3', 'single');
-
-        function playSingle() {
-            if (!buffers.single) return;
-            const source = audioCtx.createBufferSource();
-            source.buffer = buffers.single;
-            source.connect(audioCtx.destination);
-            source.start(0);
-        }
-
-        function startLoop() {
-            if (!buffers.loop || isLoopPlaying) return;
-            loopSource = audioCtx.createBufferSource();
-            loopSource.buffer = buffers.loop;
-            loopSource.loop = true;
-            loopSource.connect(audioCtx.destination);
-            loopSource.start(0);
-            isLoopPlaying = true;
-        }
-
-        function stopLoop() {
-            if (loopSource && isLoopPlaying) {
-                loopSource.stop();
-                isLoopPlaying = false;
-            }
-        }
-
         const roulette = document.getElementById('roulette-image');
         const clapper = document.getElementById('clapper-container');
+        const loopSound = document.getElementById('loop-sound');
+        const singleSound = document.getElementById('single-sound');
         const centerBtn = document.getElementById('center-button');
         
         const wheelOrder = [0, 5, 9, 12, 6, 3, 1, 8, 4, 11, 7, 2, 10];
@@ -119,7 +84,6 @@
         const colors = {0:'green', 1:'black', 2:'red', 3:'red', 4:'black', 5:'red', 6:'black', 7:'black', 8:'red', 9:'black', 10:'black', 11:'red', 12:'red'};
         
         let angle = 0, velocity = 0, friction = 0.997, ignorePegs = false;
-        let hasClickedSingle = false; // NUEVO: Control para evitar repetición
         const degreesPerSegment = 360 / 13; 
         const halfSegment = degreesPerSegment / 2;
 
@@ -127,25 +91,21 @@
         matOrder.forEach(num => {
             const cell = document.createElement('div');
             cell.className = `mat-cell ${colors[num]}`;
-            cell.innerHTML = `<input type="text" maxlength="20" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><input type="number" placeholder="0" class="input-bottom" id="bet-${num}">`;
+            cell.innerHTML = `<input type="text" maxlength="20" placeholder="JUGADOR" class="input-top" id="jug-${num}"><span>${num}</span><input type="number" placeholder="0" step="20" min="20" max="500" class="input-bottom" id="bet-${num}">`;
             mat.appendChild(cell);
         });
 
-        centerBtn.addEventListener('mousedown', () => { 
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            pressStartTime = Date.now(); 
-        });
-        
+        centerBtn.addEventListener('mousedown', () => { pressStartTime = Date.now(); });
         centerBtn.addEventListener('mouseup', () => {
             let pressDuration = (Date.now() - pressStartTime) / 1000;
             velocity = Math.min(pressDuration * 15, 40);
-            if (velocity > 0) { ignorePegs = false; startLoop(); requestAnimationFrame(spin); }
+            if (velocity > 0) { ignorePegs = false; loopSound.play(); requestAnimationFrame(spin); }
         });
 
         function spin() {
             angle += velocity;
             let relativeAngle = (angle + halfSegment) % degreesPerSegment;
-            if (velocity < 4) stopLoop();
+            if (velocity < 4) loopSound.pause();
 
             if (!ignorePegs && (relativeAngle < 2.5 || relativeAngle > (degreesPerSegment - 2.5))) {
                 if (Math.abs(velocity) < 0.4) {
@@ -153,21 +113,13 @@
                     setTimeout(() => { ignorePegs = false; }, 300);
                 } else {
                     velocity *= 0.99; clapper.style.transform = 'translateX(-50%) rotate(-20deg)'; 
-                    
-                    if (velocity < 4 && !hasClickedSingle) {
-                        playSingle();
-                        hasClickedSingle = true; // Bloqueamos hasta el siguiente tope
-                    }
+                    if (velocity < 4) singleSound.play();
                 }
-            } else { 
-                velocity *= friction; 
-                clapper.style.transform = 'translateX(-50%) rotate(0deg)';
-                hasClickedSingle = false; // Desbloqueamos al salir del tope
-            }
+            } else { velocity *= friction; clapper.style.transform = 'translateX(-50%) rotate(0deg)'; }
 
             roulette.style.transform = `rotate(${angle}deg)`;
             if (Math.abs(velocity) > 0.02) requestAnimationFrame(spin);
-            else { stopLoop(); calculateWinners(); }
+            else { loopSound.pause(); calculateWinners(); }
         }
 
         function calculateWinners() {
@@ -177,7 +129,7 @@
             
             const winNum = wheelOrder[currentSegment];
             
-            document.getElementById('winner-number').innerText = `el ${winNum}`;
+            document.getElementById('winner-number').innerText = `EL ${winNum}`;
             const list = document.getElementById('winners-list');
             const bankResult = document.getElementById('bank-result');
             list.innerHTML = '';
@@ -200,16 +152,21 @@
             let winners = [];
             matOrder.forEach(num => {
                 const jug = document.getElementById(`jug-${num}`).value;
-                const bet = parseFloat(document.getElementById(`bet-${num}`).value);
+                let bet = parseFloat(document.getElementById(`bet-${num}`).value);
                 if(!jug || !bet) return;
+
+                // Validación de apuestas
+                if(bet < 20) bet = 20;
+                if(bet > 500) bet = 500;
+                bet = Math.round(bet / 20) * 20; // Forzar múltiplo de 20
 
                 let prize = 0;
                 const sameColor = colors[num] === colors[winNum];
                 const sameParity = (num % 2) === (winNum % 2);
 
                 if(num === winNum) prize = bet * 10;
-                else if(sameColor && sameParity) prize = bet * 2;
-                else if(sameColor || sameParity) prize = bet * 1;
+                else if(sameColor && sameParity) prize = bet; // Recupera lo apostado
+                else if(sameColor || sameParity) prize = bet * 0.5; // La mitad
 
                 totalPrizes += prize;
                 winners.push({ name: jug, prize: prize });
