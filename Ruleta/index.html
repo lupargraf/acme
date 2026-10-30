@@ -156,7 +156,6 @@
                 return; 
             }
 
-            // Obtener vecinos ignorando el 0 si está en medio
             const winIndex = wheelOrder.indexOf(winNum);
             
             let prevIndex = (winIndex - 1 + 13) % 13;
@@ -177,15 +176,18 @@
                 let prize = 0;
                 const sameColor = colors[num] === colors[winNum];
                 const sameParity = (num % 2) === (winNum % 2);
+                const isNeighbor = (num === prevNum || num === nextNum);
 
                 if(num === winNum) {
                     prize = bet * 10;
-                } else if(num === prevNum || num === nextNum) {
-                    prize = bet * 2; // Vecinos ganan el doble
+                } else if(isNeighbor) {
+                    prize = sameParity ? (bet * 3) : (bet * 2);
                 } else if(sameColor && sameParity) {
-                    prize = bet; // Recupera lo apostado
+                    prize = bet;
                 } else if(sameColor || sameParity) {
-                    prize = bet * 0.5; // La mitad
+                    prize = bet * 0.5;
+                } else {
+                    prize = 0;
                 }
 
                 totalPrizes += prize;
