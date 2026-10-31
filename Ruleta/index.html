@@ -20,7 +20,10 @@
         
         .roulette-wrapper { position: relative; width: 100%; max-width: 800px; }
         #roulette-image { width: 100%; height: auto; display: block; transform-origin: center center; }
-        #center-button { position: absolute; top: 50%; left: 50%; width: 15%; height: 15%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; z-index: 20; }
+        
+        /* Modificado para evitar selección de texto en móviles */
+        #center-button { position: absolute; top: 50%; left: 50%; width: 15%; height: 15%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; z-index: 20; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        
         #clapper-container { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); transform-origin: top center; z-index: 10; }
         #clapper-image { width: 30px; height: auto; display: block; }
 
@@ -129,12 +132,15 @@
             mat.appendChild(cell);
         });
 
-        centerBtn.addEventListener('mousedown', () => { 
+        // Funciones unificadas para ratón y pantalla táctil
+        function handlePressStart(e) {
+            e.preventDefault();
             initAudio();
             pressStartTime = Date.now(); 
-        });
+        }
         
-        centerBtn.addEventListener('mouseup', () => {
+        function handlePressEnd(e) {
+            e.preventDefault();
             let pressDuration = (Date.now() - pressStartTime) / 1000;
             velocity = Math.min(pressDuration * 15, 40);
             if (velocity > 0) { 
@@ -142,7 +148,15 @@
                 hasClickedInSegment = false;
                 requestAnimationFrame(spin); 
             }
-        });
+        }
+
+        // Eventos de Ratón
+        centerBtn.addEventListener('mousedown', handlePressStart);
+        centerBtn.addEventListener('mouseup', handlePressEnd);
+
+        // Eventos Táctiles (Móviles)
+        centerBtn.addEventListener('touchstart', handlePressStart, { passive: false });
+        centerBtn.addEventListener('touchend', handlePressEnd, { passive: false });
 
         function spin() {
             angle += velocity;
