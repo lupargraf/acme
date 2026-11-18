@@ -28,7 +28,7 @@
 <body>
 
     <div id="bombo-container">
-        <img id="bombo-img" src="<unsafe_url>https://lupargraf.github.io/acme/Bingo/Bombo/Bombo01.png</unsafe_url>" alt="Bombo">
+        <img id="bombo-img" src="https://lupargraf.github.io/acme/Bingo/Bombo/Bombo01.png" alt="Bombo">
     </div>
 
     <script>
@@ -37,19 +37,15 @@
         let currentFrame = 1;
         let isSpinning = false;
         let isStopping = false;
-        let animationId;
         const imgElement = document.getElementById('bombo-img');
         
-        // Ruta base de las imágenes
         const baseUrl = '<unsafe_url>https://lupargraf.github.io/acme/Bingo/Bombo/'</unsafe_url>;
 
-        // Precarga de imágenes para evitar parpadeos
-        const images = [];
+        // Precarga de imágenes
         for (let i = 1; i <= totalFrames; i++) {
             const img = new Image();
             const num = i.toString().padStart(2, '0');
             img.src = `${baseUrl}Bombo${num}.png`;
-            images.push(img);
         }
 
         function updateImage() {
@@ -58,6 +54,8 @@
         }
 
         function animate() {
+            if (!isSpinning && !isStopping) return;
+
             currentFrame++;
             if (currentFrame > totalFrames) {
                 currentFrame = 1;
@@ -73,9 +71,7 @@
 
             // Control de velocidad (aprox 24 fps)
             setTimeout(() => {
-                if (isSpinning || isStopping) {
-                    animationId = requestAnimationFrame(animate);
-                }
+                requestAnimationFrame(animate);
             }, 41);
         }
 
