@@ -3,70 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bombo de Sorteo - Eje Corregido</title>
+    <title>Bombo de Sorteo - Secuencia</title>
     <style>
         body {
             background-color: #2c3e50;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            font-family: sans-serif;
-            color: white;
+            height: 100vh;
+            margin: 0;
         }
-        #contenedor-bombo {
-            position: relative;
-            width: 600px; /* Ajustado para dar margen */
-            height: 600px;
-            margin-top: 50px;
+        #bombo-container {
             cursor: pointer;
+            width: 500px; /* Ajusta al tamaño de tus imágenes */
+            height: 500px;
         }
-        .capa {
-            position: absolute;
+        #bombo-img {
             width: 100%;
             height: 100%;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-        #soporte {
-            background-image: url('Soporte.png');
-            z-index: 2;
-        }
-        #bombo {
-            background-image: url('Bombo_2.png');
-            z-index: 1;
-            /* AJUSTE CLAVE: Define el punto exacto de giro (X, Y) */
-            /* Si el eje no queda perfecto, modifica estos porcentajes */
-            transform-origin: 41.5% 37%; 
-        }
-        .girando {
-            animation: girar 3s linear infinite;
-        }
-        @keyframes girar {
-            100% { transform: rotate(360deg); }
+            object-fit: contain;
         }
     </style>
 </head>
 <body>
 
-    <div id="contenedor-bombo" onclick="toggleGiro()">
-        <div id="bombo" class="capa"></div>
-        <div id="soporte" class="capa"></div>
+    <div id="bombo-container">
+        <img id="bombo-img" src="<unsafe_url>https://lupargraf.github.io/acme/Bingo/Bombo/Bombo01.png</unsafe_url>" alt="Bombo">
     </div>
 
     <script>
-        const bombo = document.getElementById('bombo');
-        let girando = false;
+        const totalFrames = 84;
+        const stopFrame = 44;
+        let currentFrame = 1;
+        let isSpinning = false;
+        let isStopping = false;
+        let animationId;
+        const imgElement = document.getElementById('bombo-img');
+        
+        // Ruta base de las imágenes
+        const baseUrl = '<unsafe_url>https://lupargraf.github.io/acme/Bingo/Bombo/'</unsafe_url>;
 
-        function toggleGiro() {
-            if (!girando) {
-                bombo.classList.add('girando');
-                girando = true;
-            } else {
-                bombo.classList.remove('girando');
-                girando = false;
-            }
+        // Precarga de imágenes para evitar parpadeos
+        const images = [];
+        for (let i = 1; i <= totalFrames; i++) {
+            const img = new Image();
+            const num = i.toString().padStart(2, '0');
+            img.src = `${baseUrl}Bombo${num}.png`;
+            images.push(img);
         }
+
+        function updateImage() {
+            const num = currentFrame.toString().padStart(2, '0');
+            imgElement.src = `${baseUrl}Bombo${num}.png`;
+        }
+
+        function animate() {
+            currentFrame++;
+            if (currentFrame > totalFrames) {
+                currentFrame = 1;
+            }
+
+            updateImage();
+
+            if (isStopping && currentFrame === stopFrame) {
+                isSpinning = false;
+                isStopping = false;
+                return; // Detiene la animación
+            }
+
+            // Control de velocidad (aprox 24 fps)
+            setTimeout(() => {
+                if (isSpinning || isStopping) {
+                    animationId = requestAnimationFrame(animate);
+                }
+            }, 41);
+        }
+
+        document.getElementById('bombo-container').addEventListener('click', () => {
+            if (!isSpinning && !isStopping) {
+                // Empezar a girar
+                isSpinning = true;
+                animate();
+            } else if (isSpinning && !isStopping) {
+                // Ordenar parada
+                isSpinning = false;
+                isStopping = true;
+            }
+        });
     </script>
 </body>
 </html>
