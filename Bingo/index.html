@@ -15,13 +15,17 @@
         }
         #bombo-container {
             cursor: pointer;
-            width: 500px; /* Ajusta al tamaño de tus imágenes */
+            width: 500px;
             height: 500px;
+            /* Evita que se seleccione texto o se haga zoom al tocar en móviles */
+            user-select: none;
+            -webkit-user-select: none;
         }
         #bombo-img {
             width: 100%;
             height: 100%;
             object-fit: contain;
+            pointer-events: none; /* Asegura que el contenedor reciba el toque */
         }
     </style>
 </head>
@@ -37,11 +41,14 @@
         let currentFrame = 1;
         let isSpinning = false;
         let isStopping = false;
-        const imgElement = document.getElementById('bombo-img');
+        let lastTime = 0;
+        const fps = 24;
+        const frameInterval = 1000 / fps;
         
+        const imgElement = document.getElementById('bombo-img');
         const baseUrl = '<unsafe_url>https://lupargraf.github.io/acme/Bingo/Bombo/'</unsafe_url>;
 
-        // Precarga de imágenes
+        // Precarga
         for (let i = 1; i <= totalFrames; i++) {
             const img = new Image();
             const num = i.toString().padStart(2, '0');
@@ -53,39 +60,52 @@
             imgElement.src = `${baseUrl}Bombo${num}.png`;
         }
 
-        function animate() {
+        function animate(timestamp) {
             if (!isSpinning && !isStopping) return;
 
-            currentFrame++;
-            if (currentFrame > totalFrames) {
-                currentFrame = 1;
+            if (!lastTime) lastTime = timestamp;
+            const elapsed = timestamp - lastTime;
+
+            if (elapsed > frameInterval) {
+                lastTime = timestamp - (elapsed % frameInterval);
+
+                currentFrame++;
+                if (currentFrame > totalFrames) {
+                    currentFrame = 1;
+                }
+
+                updateImage();
+
+                if (isStopping && currentFrame === stopFrame) {
+                    isSpinning = false;
+                    isStopping = false;
+                    return;
+                }
             }
 
-            updateImage();
-
-            if (isStopping && currentFrame === stopFrame) {
-                isSpinning = false;
-                isStopping = false;
-                return; // Detiene la animación
-            }
-
-            // Control de velocidad (aprox 24 fps)
-            setTimeout(() => {
-                requestAnimationFrame(animate);
-            }, 41);
+            requestAnimationFrame(animate);
         }
 
-        document.getElementById('bombo-container').addEventListener('click', () => {
+        function handleInteraction(e) {
+            e.preventDefault(); // Evita comportamientos por defecto en móviles
+            
             if (!isSpinning && !isStopping) {
-                // Empezar a girar
                 isSpinning = true;
-                animate();
+                lastTime = 0;
+                requestAnimationFrame(animate);
             } else if (isSpinning && !isStopping) {
-                // Ordenar parada
                 isSpinning = false;
                 isStopping = true;
             }
-        });
+        }
+
+        const container = document.getElementById('bombo-container');
+        
+        // Evento para ratón
+        container.addEventListener('click', handleInteraction);
+        
+        // Evento para pantallas táctiles
+        container.addEventListener('touchstart', handleInteraction, { passive: false });
     </script>
 </body>
 </html>
