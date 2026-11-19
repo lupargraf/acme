@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bingo del Bronx</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Impact&display=swap');
+        @import url('<unsafe_url>https://fonts.googleapis.com/css2?family=Impact&display=swap'</unsafe_url>);
         
         body {
             background-color: #111;
@@ -30,7 +30,7 @@
             -webkit-text-stroke: 3px #FF0000;
             font-size: 90px;
             position: absolute;
-            top: 30px;
+            top: 60px; /* Ajustado para margen superior */
             left: 50px;
             letter-spacing: 2px;
         }
@@ -83,10 +83,11 @@
         #tablero {
             position: absolute;
             left: 50px;
-            top: 200px;
+            top: 220px; /* Ajustado para margen superior */
             display: grid;
             grid-template-columns: repeat(10, 80px);
             grid-gap: 15px;
+            width: 950px; /* Asegura espacio para las 10 columnas */
         }
 
         .casilla {
@@ -118,10 +119,10 @@
         </div>
     </div>
 
+    <!-- Audio actualizado a audiogiro2.mp3 -->
     <audio id="audio-giro" src="./Bombo/audiogiro2.mp3" loop></audio>
 
     <script>
-        // Escalado del tapete
         function resize() {
             const scale = Math.min(window.innerWidth / 2000, window.innerHeight / 1175);
             document.getElementById('tapete').style.transform = `scale(${scale})`;
@@ -138,10 +139,9 @@
         const bolaAnimada = document.getElementById('bola-animada');
         const tablero = document.getElementById('tablero');
 
-        // Crear tablero
         for(let i=1; i<=90; i++) {
             let c = document.createElement('div');
-            c.className = 'casilla'; c.id = `casilla-${i}`; c.innerText = i;
+            c.className = 'casilla'; <unsafe_url>c.id</unsafe_url> = `casilla-${i}`; c.innerText = i;
             tablero.appendChild(c);
         }
 
@@ -172,7 +172,6 @@
             bolasExtraidas++;
             document.getElementById('contador').innerText = bolasExtraidas;
 
-            // Configurar bola
             bolaAnimada.innerText = numero;
             bolaAnimada.style.display = 'flex';
             bolaAnimada.style.left = '320px';
@@ -187,20 +186,19 @@
                     let rectCasilla = casilla.getBoundingClientRect();
                     let rectBombo = document.getElementById('bombo-container').getBoundingClientRect();
                     
-                    // Calcular destino relativo
                     let destX = (rectCasilla.left - rectBombo.left) / (rectBombo.width / 718);
                     let destY = (rectCasilla.top - rectBombo.top) / (rectBombo.height / 720);
 
                     bolaAnimada.style.left = `${destX}px`;
                     bolaAnimada.style.top = `${destY}px`;
-                    bolaAnimada.style.transform = 'scale(1.33)'; // Ajuste visual
+                    bolaAnimada.style.transform = 'scale(1.33)';
 
                     setTimeout(() => {
                         casilla.style.backgroundImage = "url('./Bombo/bola.png')";
                         casilla.style.backgroundSize = "cover";
                         casilla.style.color = "black";
                         bolaAnimada.style.display = 'none';
-                        isAnimating = false;
+                        isAnimating = false; // Reactiva el bombo
                     }, 1000);
                 }, 1000);
             }, 100);
@@ -210,7 +208,8 @@
             if(isAnimating || bolasDisponibles.length === 0) return;
             
             if (!isSpinning && !isStopping) {
-                isSpinning = true; isAnimating = true;
+                isSpinning = true; 
+                // isAnimating se activa aquí para que no se pueda pulsar mientras gira
                 audioGiro.play().catch(e => {});
                 tick();
             } else if (isSpinning && !isStopping) {
