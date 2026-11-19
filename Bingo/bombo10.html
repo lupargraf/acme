@@ -30,7 +30,7 @@
             -webkit-text-stroke: 3px #FF0000;
             font-size: 90px;
             position: absolute;
-            top: 60px; /* Ajustado para margen superior */
+            top: 60px;
             left: 50px;
             letter-spacing: 2px;
         }
@@ -75,7 +75,7 @@
         }
 
         .texto-contador {
-            color: #000;
+            color: #015696; /* Color azul solicitado */
             font-size: 60px;
             margin-top: 50px;
         }
@@ -83,11 +83,10 @@
         #tablero {
             position: absolute;
             left: 50px;
-            top: 220px; /* Ajustado para margen superior */
+            top: 220px;
             display: grid;
             grid-template-columns: repeat(10, 80px);
             grid-gap: 15px;
-            width: 950px; /* Asegura espacio para las 10 columnas */
         }
 
         .casilla {
@@ -119,7 +118,6 @@
         </div>
     </div>
 
-    <!-- Audio actualizado a audiogiro2.mp3 -->
     <audio id="audio-giro" src="./Bombo/audiogiro2.mp3" loop></audio>
 
     <script>
@@ -198,7 +196,7 @@
                         casilla.style.backgroundSize = "cover";
                         casilla.style.color = "black";
                         bolaAnimada.style.display = 'none';
-                        isAnimating = false; // Reactiva el bombo
+                        isAnimating = false;
                     }, 1000);
                 }, 1000);
             }, 100);
@@ -209,11 +207,11 @@
             
             if (!isSpinning && !isStopping) {
                 isSpinning = true; 
-                // isAnimating se activa aquí para que no se pueda pulsar mientras gira
                 audioGiro.play().catch(e => {});
                 tick();
             } else if (isSpinning && !isStopping) {
                 isStopping = true;
+                isAnimating = true; // Bloquea solo cuando empieza a frenar
             }
         }
     </script>
