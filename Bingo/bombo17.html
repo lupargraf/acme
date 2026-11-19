@@ -214,12 +214,6 @@
   <script>
     "use strict";
 
-    // Se presupone esta estructura:
-    // index.html
-    // Bombo/Bombo01.png ... Bombo84.png
-    // Bombo/bola.png
-    // Bombo/audiogiro2.mp3
-
     const TOTAL_FRAMES = 84;
     const FRAME_PARADA = 44;
     const INTERVALO_GIRO = 40;
@@ -237,7 +231,6 @@
     let esperandoParada = false;
     let animandoBola = false;
 
-    // Se barajan los números una sola vez: no puede repetirse ninguno.
     const bolasDisponibles = Array.from({ length: 90 }, (_, i) => i + 1);
     for (let i = bolasDisponibles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -246,17 +239,15 @@
 
     let bolasExtraidas = 0;
 
-    // Crear las 90 casillas.
     for (let numero = 1; numero <= 90; numero++) {
       const casilla = document.createElement("div");
       casilla.className = "casilla";
-      casilla.id = `casilla-${numero}`;
+      <unsafe_url>casilla.id</unsafe_url> = `casilla-${numero}`;
       casilla.textContent = numero;
       casilla.setAttribute("aria-label", `Número ${numero}`);
       tablero.appendChild(casilla);
     }
 
-    // Precargar los fotogramas para evitar parpadeos durante el giro.
     for (let frame = 1; frame <= TOTAL_FRAMES; frame++) {
       const imagen = new Image();
       imagen.src = rutaFrame(frame);
@@ -275,7 +266,6 @@
       frameActual = frameActual >= TOTAL_FRAMES ? 1 : frameActual + 1;
       mostrarFrame(frameActual);
 
-      // La parada siempre se produce exactamente en Bombo44.png.
       if (esperandoParada && frameActual === FRAME_PARADA) {
         detenerBombo();
       }
@@ -291,9 +281,7 @@
       esperandoParada = false;
 
       audioGiro.currentTime = 0;
-      audioGiro.play().catch(() => {
-        // Algunos navegadores pueden bloquear el audio; el juego sigue funcionando.
-      });
+      audioGiro.play().catch(() => {});
 
       intervalo = window.setInterval(avanzarFrame, INTERVALO_GIRO);
     }
@@ -308,21 +296,17 @@
       girando = false;
       esperandoParada = false;
 
-      // Asegurar que el fotograma visible sea el de parada.
       mostrarFrame(FRAME_PARADA);
-
       audioGiro.pause();
       audioGiro.currentTime = 0;
 
-      // Bloquear nuevos clics durante la breve pausa previa a la extracción.
       animandoBola = true;
-      // Dejar respirar un instante al fotograma parado antes de mostrar la bola.
       window.setTimeout(extraerBola, 180);
     }
 
     function crearBolaVoladora(numero, centroX, centroY) {
       const bola = document.createElement("div");
-      bola.id = "bola-voladora";
+      <unsafe_url>bola.id</unsafe_url> = "bola-voladora";
       bola.textContent = numero;
       bola.style.left = `${centroX}px`;
       bola.style.top = `${centroY}px`;
@@ -331,131 +315,57 @@
     }
 
     async function extraerBola() {
-      if (bolasDisponibles.length === 0) {
-        ayuda.textContent = "Ya se han extraído las 90 bolas.";
-        return;
-      }
+      if (bolasDisponibles.length === 0) return;
 
       animandoBola = true;
 
-      // Sacar el siguiente número de la lista barajada.
       const numero = bolasDisponibles.pop();
       const casilla = document.getElementById(`casilla-${numero}`);
 
       const bomboRect = bomboImg.getBoundingClientRect();
       const casillaRect = casilla.getBoundingClientRect();
 
-      // Calcular el tamaño real de la imagen dentro de su contenedor.
-      const escala = Math.min(
-        bomboRect.width / bomboImg.naturalWidth,
-        bomboRect.height / bomboImg.naturalHeight
-      );
-
-      // Compensar posibles márgenes de object-fit: contain.
+      const escala = Math.min(bomboRect.width / bomboImg.naturalWidth, bomboRect.height / bomboImg.naturalHeight);
       const imagenWidth = bomboImg.naturalWidth * escala;
       const imagenHeight = bomboImg.naturalHeight * escala;
       const offsetX = (bomboRect.width - imagenWidth) / 2;
       const offsetY = (bomboRect.height - imagenHeight) / 2;
 
-      // Posición exacta de la boca del bombo en Bombo44.png.
       const bocaX = bomboRect.left + offsetX + 320 * escala;
       const bocaY = bomboRect.top + offsetY + 563 * escala;
 
-      // Centro del bombo.
       const centroX = bomboRect.left + offsetX + imagenWidth / 2;
       const centroY = bomboRect.top + offsetY + imagenHeight / 2;
 
-      // Diámetro original de la bola, adaptado al tamaño del bombo.
       const diametroInicial = 60 * escala;
-
       const destinoX = casillaRect.left + casillaRect.width / 2;
       const destinoY = casillaRect.top + casillaRect.height / 2;
 
       const bola = crearBolaVoladora(numero, bocaX, bocaY);
-
-      // Aparece en la boca con su tamaño original.
       bola.style.width = `${diametroInicial}px`;
       bola.style.height = `${diametroInicial}px`;
 
-      // Pequeña pausa para apreciar la bola antes de iniciar el movimiento.
       await new Promise(resolve => setTimeout(resolve, 180));
 
-      // Fase 1: sale de la boca y crece hasta el centro del bombo.
-      const diametroGrande = Math.min(
-        190 * escala,
-        Math.max(125 * escala, bomboRect.width * 0.36)
-      );
+      const diametroGrande = Math.min(190 * escala, Math.max(125 * escala, bomboRect.width * 0.36));
 
       await bola.animate([
-        {
-          left: `${bocaX}px`,
-          top: `${bocaY}px`,
-          width: `${diametroInicial}px`,
-          height: `${diametroInicial}px`
-        },
-        {
-          left: `${centroX}px`,
-          top: `${centroY}px`,
-          width: `${diametroGrande}px`,
-          height: `${diametroGrande}px`
-        }
-      ], {
-        duration: 650,
-        easing: "cubic-bezier(.2,.8,.25,1)",
-        fill: "forwards"
-      }).finished;
+        { left: `${bocaX}px`, top: `${bocaY}px`, width: `${diametroInicial}px`, height: `${diametroInicial}px` },
+        { left: `${centroX}px`, top: `${centroY}px`, width: `${diametroGrande}px`, height: `${diametroGrande}px` }
+      ], { duration: 650, easing: "cubic-bezier(.2,.8,.25,1)", fill: "forwards" }).finished;
 
-      // Fase 2: desde el centro hasta su casilla, reduciendo su tamaño.
       await bola.animate([
-        {
-          left: `${centroX}px`,
-          top: `${centroY}px`,
-          width: `${diametroGrande}px`,
-          height: `${diametroGrande}px`
-        },
-        {
-          left: `${destinoX}px`,
-          top: `${destinoY}px`,
-          width: `${casillaRect.width}px`,
-          height: `${casillaRect.height}px`
-        }
-      ], {
-        duration: 950,
-        easing: "cubic-bezier(.22,.7,.25,1)",
-        fill: "forwards"
-      }).finished;
+        { left: `${centroX}px`, top: `${centroY}px`, width: `${diametroGrande}px`, height: `${diametroGrande}px` },
+        { left: `${destinoX}px`, top: `${destinoY}px`, width: `${casillaRect.width}px`, height: `${casillaRect.height}px` }
+      ], { duration: 950, easing: "cubic-bezier(.22,.7,.25,1)", fill: "forwards" }).finished;
 
-      // Fase 2: se desplaza hasta su casilla mientras se hace pequeña.
-      await bola.animate([
-        {
-          left: `${inicioX}px`,
-          top: `${inicioY}px`,
-          width: `${diametroGrande}px`,
-          height: `${diametroGrande}px`,
-          transform: "translate(-50%, -50%) scale(1)"
-        },
-        {
-          left: `${destinoX}px`,
-          top: `${destinoY}px`,
-          width: `${Math.max(30, casillaRect.width)}px`,
-          height: `${Math.max(30, casillaRect.height)}px`,
-          transform: "translate(-50%, -50%) scale(1)"
-        }
-      ], {
-        duration: 950,
-        easing: "cubic-bezier(.22,.7,.25,1)",
-        fill: "forwards"
-      }).finished;
-
-      // La bola queda representada en la casilla.
       casilla.classList.add("extraida");
-      casilla.setAttribute("aria-label", `Número ${numero}, extraído`);
       bola.remove();
 
       bolasExtraidas++;
       contador.textContent = bolasExtraidas;
-      ayuda.textContent = `Ha salido el número ${numero}.`;
 
+      // DESBLOQUEO: Ahora sí se permite volver a pulsar
       animandoBola = false;
     }
 
@@ -470,12 +380,6 @@
     }
 
     bomboContainer.addEventListener("click", controlarBombo);
-    bomboContainer.addEventListener("keydown", (evento) => {
-      if (evento.key === "Enter" || evento.key === " ") {
-        evento.preventDefault();
-        controlarBombo();
-      }
-    });
   </script>
 </body>
 </html>
