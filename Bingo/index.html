@@ -230,22 +230,19 @@
 
     <section id="zona-derecha">
       <div id="bombo-container" role="button" tabindex="0">
-        <video
-        id="bombo-video"
-        src="./Bombo/girobombo.mp4"
-        poster="./Bombo/Bombo.jpg"
-        loop
-        playsinline
-        webkit-playsinline
-        preload="auto"
-        muted>
-      </video>
+  <video
+  id="bombo-video"
+  src="./Bombo/girobombo.mp4"
+  poster="./Bombo/Bombo.jpg"
+  loop
+  playsinline
+  webkit-playsinline
+  preload="auto">
+</video>
       </div>
       <div class="texto-contador">Bolas extraídas: <span id="contador">0</span></div>
     </section>
   </main>
-
-  <audio id="audio-giro" src="./Bombo/audiogiro2.mp3" loop preload="auto"></audio>
 
   <script>
 "use strict";
@@ -264,7 +261,6 @@ const ALTO_REFERENCIA = 720;
 
 const bomboContainer = document.getElementById("bombo-container");
 const bomboVideo = document.getElementById("bombo-video");
-const audioGiro = document.getElementById("audio-giro");
 const tablero = document.getElementById("tablero");
 const contador = document.getElementById("contador");
 
@@ -309,11 +305,7 @@ function iniciarBombo() {
 
   ultimoTiempoVideo = bomboVideo.currentTime;
 
-  // Audio iniciado directamente desde el toque del usuario.
-  audioGiro.currentTime = 0;
-  audioGiro.play().catch(() => {});
-
-  // Reproducir el vídeo.
+  // Reproducir el vídeo con su propio sonido.
   const reproduccion = bomboVideo.play();
 
   if (reproduccion && typeof reproduccion.catch === "function") {
@@ -325,9 +317,6 @@ function iniciarBombo() {
 
       girando = false;
       esperandoParada = false;
-
-      audioGiro.pause();
-      audioGiro.currentTime = 0;
     });
   }
 
@@ -384,9 +373,6 @@ function detenerBombo() {
 
   girando = false;
   esperandoParada = false;
-
-  audioGiro.pause();
-  audioGiro.currentTime = 0;
 
   animandoBola = true;
 
