@@ -154,7 +154,7 @@
     #stage {
       flex: 1 1 auto;
       width: 100%;
-      padding: 4px 10px 10px;
+      padding: 2px 6px 6px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -167,7 +167,7 @@
       width: auto;
       height: auto;
       max-width: 100%;
-      max-height: calc(100dvh - 125px);
+      max-height: 100%;
       aspect-ratio: 1 / 1;
       background-color: #000000;
       background-size: 100% 100%;
@@ -327,8 +327,8 @@
       chartWrapper.style.aspectRatio = `${safeRatio} / 1`;
 
       const stageRect = stage.getBoundingClientRect();
-      const availW = Math.max(200, stageRect.width - 8);
-      const availH = Math.max(200, stageRect.height - 8);
+      const availW = Math.max(100, stageRect.width - 4);
+      const availH = Math.max(100, stageRect.height - 4);
 
       let boxW = availW;
       let boxH = boxW / safeRatio;
@@ -340,8 +340,8 @@
 
       chartWrapper.style.maxWidth = '100%';
       chartWrapper.style.maxHeight = '100%';
-      chartWrapper.style.width = `${Math.floor(boxW)}px`;
-      chartWrapper.style.height = `${Math.floor(boxH)}px`;
+      chartWrapper.style.width = `${boxW.toFixed(2)}px`;
+      chartWrapper.style.height = `${boxH.toFixed(2)}px`;
     }
 
     function getActiveAspectRatio() {
@@ -350,6 +350,11 @@
         ? CHART_ASPECT_RATIO
         : (currentImageAspectRatio || CHART_ASPECT_RATIO);
     }
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitChartWrapper(getActiveAspectRatio());
+    });
+    resizeObserver.observe(stage);
 
     window.addEventListener('resize', () => {
       fitChartWrapper(getActiveAspectRatio());
@@ -378,7 +383,7 @@
       } else if (mode === 'custom' && customDataUrl) {
         currentBgMode = 'custom';
         currentBgDataUrl = customDataUrl;
-        chartWrapper.style.backgroundColor = '#000000';
+        chartWrapper.style.backgroundColor = 'transparent';
         chartWrapper.style.backgroundImage = `url("${customDataUrl}")`;
         try {
           const img = await loadImageElement(customDataUrl, false);
@@ -392,7 +397,7 @@
       } else {
         currentBgMode = 'cme';
         currentBgDataUrl = null;
-        chartWrapper.style.backgroundColor = '#000000';
+        chartWrapper.style.backgroundColor = 'transparent';
         chartWrapper.style.backgroundImage = `url("${CME_BG_URL}")`;
         try {
           const img = await loadImageElement(CME_BG_URL, true);
@@ -457,7 +462,7 @@
       const cy = height / 2;
 
       const innerRadius = 52;
-      const maxOuterRadius = 472;
+      const maxOuterRadius = 490;
 
       const maxScore = d3.max(data, d => d.puntuacion) || 100;
 
@@ -482,9 +487,7 @@
       const g = svg.append('g')
         .attr('transform', `translate(${cx}, ${cy})`);
 
-      g.append('circle')
-        .attr('r', innerRadius - 1)
-        .attr('fill', '#000000');
+      // Centro transparente: no se dibuja círculo negro central
 
       const arcGenerator = d3.arc()
         .innerRadius(innerRadius)
