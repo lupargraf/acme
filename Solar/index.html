@@ -8,6 +8,8 @@
   <!-- Librerías externas vía CDN -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js"></script>
 
   <style>
     @font-face {
@@ -224,7 +226,7 @@
       <button type="button" id="load-file-btn" class="secondary-btn" title="Cargar tabla desde archivo Excel o CSV">Cargar tabla</button>
       <input type="file" id="table-file-input" class="sr-file-input" accept=".xlsx, .xls, .csv" />
 
-      <button type="button" id="download-jpg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad (3240 x 3000 px JPG)">Descargar JPG</button>
+      <button type="button" id="download-pdf-btn" class="secondary-btn" title="Descargar gráfico vectorial en PDF">Descargar PDF</button>
     </div>
   </header>
 
@@ -265,9 +267,9 @@
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
 
-    // Resolución de exportación: lado menor 3000 px y relación 1.08 x 1 -> 3240 x 3000 px
-    const EXPORT_HEIGHT = 3000;
-    const EXPORT_WIDTH = Math.round(EXPORT_HEIGHT * 1.08); // 3240
+    // Dimensiones del PDF en puntos (relación 1.08 x 1, lado menor 3000)
+    const PDF_HEIGHT = 3000;
+    const PDF_WIDTH = Math.round(PDF_HEIGHT * 1.08); // 3240
 
     let currentBgMode = 'cme';
     let currentBgDataUrl = null;
@@ -601,23 +603,14 @@
       reader.readAsArrayBuffer(file);
     });
 
-    async function getEmbeddedFontCss() {
+    async function getEmbeddedFontDataUrl() {
       try {
         const response = await fetch(FONT_URL);
         if (!response.ok) return '';
         const blob = await response.blob();
         return await new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve(`
-              @font-face {
-                font-family: 'AbelCustom';
-                src: url('${reader.result}') format('truetype');
-                font-weight: normal;
-                font-style: normal;
-              }
-            `);
-          };
+          reader.onloadend = () => resolve(reader.result || '');
           reader.onerror = () => resolve('');
           reader.readAsDataURL(blob);
         });
@@ -626,102 +619,93 @@
       }
     }
 
-    function drawContainImage(ctx, img, canvasW, canvasH) {
-      const imgW = img.naturalWidth || img.width;
-      const imgH = img.naturalHeight || img.height;
-      if (!imgW || !imgH) return;
-
-      const scale = Math.min(canvasW / imgW, canvasH / imgH);
-      const drawW = imgW * scale;
-      const drawH = imgH * scale;
-      const offsetX = (canvasW - drawW) / 2;
-      const offsetY = (canvasH - drawH) / 2;
-
-      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+    function loadImageElement(src, useCors = false) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        if (useCors) {
+          img.crossOrigin = 'anonymous';
+        }
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
     }
 
-    document.getElementById('download-jpg-btn').addEventListener('click', async function() {
+    document.getElementById('download-pdf-btn').addEventListener('click', async function() {
       const btn = this;
       const originalText = btn.textContent;
-      btn.textContent = 'Generando JPG...';
+      btn.textContent = 'Generando PDF...';
       btn.disabled = true;
 
       try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+          orientation: 'landscape',
+          unit: 'pt',
+          format: [PDF_WIDTH, PDF_HEIGHT]
+        });
+
+        const bgHex = SOLID_BACKGROUNDS[currentBgMode] || '#000000';
+        doc.setFillColor(bgHex);
+        doc.rect(0, 0, PDF_WIDTH, PDF_HEIGHT, 'F');
+
+        if (currentBgMode === 'custom' && currentBgDataUrl) {
+          try {
+            const bgImg = await loadImageElement(currentBgDataUrl, false);
+            const imgW = bgImg.naturalWidth || bgImg.width;
+            const imgH = bgImg.naturalHeight || bgImg.height;
+            if (imgW && imgH) {
+              const scale = Math.min(PDF_WIDTH / imgW, PDF_HEIGHT / imgH);
+              const drawW = imgW * scale;
+              const drawH = imgH * scale;
+              const offsetX = (PDF_WIDTH - drawW) / 2;
+              const offsetY = (PDF_HEIGHT - drawH) / 2;
+              doc.addImage(currentBgDataUrl, offsetX, offsetY, drawW, drawH);
+            }
+          } catch (e) {
+            // Continuar con el color sólido de respaldo
+          }
+        } else if (!SOLID_BACKGROUNDS[currentBgMode]) {
+          try {
+            const bgImg = await loadImageElement(CME_BG_URL, true);
+            const canvas = document.createElement('canvas');
+            canvas.width = PDF_WIDTH;
+            canvas.height = PDF_HEIGHT;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bgImg, 0, 0, PDF_WIDTH, PDF_HEIGHT);
+            doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, PDF_WIDTH, PDF_HEIGHT);
+          } catch (e) {
+            // Continuar si el fondo externo no se puede cargar
+          }
+        }
+
         const svgElement = document.getElementById('solar-chart');
         const clonedSvg = svgElement.cloneNode(true);
-
         clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clonedSvg.setAttribute('width', String(EXPORT_WIDTH));
-        clonedSvg.setAttribute('height', String(EXPORT_HEIGHT));
+        clonedSvg.setAttribute('width', String(PDF_WIDTH));
+        clonedSvg.setAttribute('height', String(PDF_HEIGHT));
 
-        const fontCss = await getEmbeddedFontCss();
-        if (fontCss) {
-          const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-          const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-          styleEl.textContent = fontCss;
-          defs.appendChild(styleEl);
-          clonedSvg.insertBefore(defs, clonedSvg.firstChild);
+        const fontDataUrl = await getEmbeddedFontDataUrl();
+        if (fontDataUrl) {
+          const base64Font = fontDataUrl.split(',')[1];
+          if (base64Font) {
+            doc.addFileToVFS('Abel-Regular.ttf', base64Font);
+            doc.addFont('Abel-Regular.ttf', 'AbelCustom', 'normal');
+            doc.setFont('AbelCustom', 'normal');
+          }
         }
 
-        const serializer = new XMLSerializer();
-        const svgString = serializer.serializeToString(clonedSvg);
+        await doc.svg(clonedSvg, {
+          x: 0,
+          y: 0,
+          width: PDF_WIDTH,
+          height: PDF_HEIGHT
+        });
 
-        const canvas = document.createElement('canvas');
-        canvas.width = EXPORT_WIDTH;
-        canvas.height = EXPORT_HEIGHT;
-        const ctx = canvas.getContext('2d');
-
-        ctx.fillStyle = SOLID_BACKGROUNDS[currentBgMode] || '#000000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const drawSvgOnCanvas = () => {
-          const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(svgBlob);
-          const img = new Image();
-          img.onload = function() {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            URL.revokeObjectURL(url);
-            const link = document.createElement('a');
-            link.download = 'grafica-solar.jpg';
-            link.href = canvas.toDataURL('image/jpeg', 0.95);
-            link.click();
-            btn.textContent = originalText;
-            btn.disabled = false;
-          };
-          img.onerror = function() {
-            URL.revokeObjectURL(url);
-            btn.textContent = originalText;
-            btn.disabled = false;
-          };
-          img.src = url;
-        };
-
-        if (SOLID_BACKGROUNDS[currentBgMode]) {
-          drawSvgOnCanvas();
-        } else if (currentBgMode === 'custom' && currentBgDataUrl) {
-          const bgImg = new Image();
-          bgImg.onload = function() {
-            drawContainImage(ctx, bgImg, canvas.width, canvas.height);
-            drawSvgOnCanvas();
-          };
-          bgImg.onerror = function() {
-            drawSvgOnCanvas();
-          };
-          bgImg.src = currentBgDataUrl;
-        } else {
-          const bgImg = new Image();
-          bgImg.crossOrigin = 'anonymous';
-          bgImg.onload = function() {
-            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-            drawSvgOnCanvas();
-          };
-          bgImg.onerror = function() {
-            drawSvgOnCanvas();
-          };
-          bgImg.src = CME_BG_URL;
-        }
+        doc.save('grafica-solar.pdf');
       } catch (err) {
         console.error(err);
+      } finally {
         btn.textContent = originalText;
         btn.disabled = false;
       }
