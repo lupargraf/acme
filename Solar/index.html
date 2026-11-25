@@ -143,15 +143,16 @@
       border-radius: 2px;
     }
 
-    /* Relación de aspecto exacta 1.08 : 1 */
+    /* Contenedor adaptable a la relación de aspecto activa (imagen o gráfica) */
     #chart-wrapper {
       position: relative;
-      width: 100%;
-      max-width: 1134px;
-      aspect-ratio: 1.08 / 1;
+      width: auto;
+      height: auto;
+      max-width: 95vw;
+      max-height: 78vh;
+      aspect-ratio: 1 / 1;
       margin: 10px auto 30px;
       background-color: #000000;
-      background-image: url('https://lupargraf.github.io/acme/Solar/fondosolar.jpg');
       background-size: 100% 100%;
       background-position: center;
       background-repeat: no-repeat;
@@ -241,7 +242,8 @@
   <div id="status-msg">Mostrando datos de ejemplo. Usa "Cargar tabla" para importar tu archivo.</div>
 
   <div id="chart-wrapper">
-    <svg id="solar-chart" viewBox="0 0 1080 1000" preserveAspectRatio="xMidYMid meet"></svg>
+    <!-- La gráfica radial ocupa proporcionalmente el máximo espacio posible sin salirse -->
+    <svg id="solar-chart" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
   <div id="tooltip"></div>
@@ -267,12 +269,12 @@
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
 
-    // Dimensiones del PDF en puntos (relación 1.08 x 1, lado menor 3000)
-    const PDF_HEIGHT = 3000;
-    const PDF_WIDTH = Math.round(PDF_HEIGHT * 1.08); // 3240
+    // Relación de aspecto de la propia gráfica (ancho / alto)
+    const CHART_ASPECT_RATIO = 1;
 
     let currentBgMode = 'cme';
     let currentBgDataUrl = null;
+    let currentImageAspectRatio = null; // ancho / alto de la imagen de fondo activa
 
     // 2 del nivel 0, 4 del nivel 1, 6 del nivel 2, 5 del nivel 3 y 4 del nivel 4
     const SAMPLE_DATA = [
@@ -308,25 +310,59 @@
     const bgFileInput = document.getElementById('bg-file-input');
     const tableFileInput = document.getElementById('table-file-input');
 
-    function applyBackground(mode, customDataUrl = null) {
+    function setWrapperAspectRatio(ratio) {
+      const safeRatio = (ratio && isFinite(ratio) && ratio > 0) ? ratio : CHART_ASPECT_RATIO;
+      chartWrapper.style.aspectRatio = `${safeRatio} / 1`;
+    }
+
+    function loadImageElement(src, useCors = false) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        if (useCors) {
+          img.crossOrigin = 'anonymous';
+        }
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function applyBackground(mode, customDataUrl = null) {
       if (SOLID_BACKGROUNDS[mode]) {
         currentBgMode = mode;
         currentBgDataUrl = null;
+        currentImageAspectRatio = null;
         chartWrapper.style.backgroundColor = SOLID_BACKGROUNDS[mode];
         chartWrapper.style.backgroundImage = 'none';
-        chartWrapper.style.backgroundSize = '100% 100%';
+        setWrapperAspectRatio(CHART_ASPECT_RATIO);
       } else if (mode === 'custom' && customDataUrl) {
         currentBgMode = 'custom';
         currentBgDataUrl = customDataUrl;
         chartWrapper.style.backgroundColor = '#000000';
         chartWrapper.style.backgroundImage = `url("${customDataUrl}")`;
-        chartWrapper.style.backgroundSize = 'contain';
+        try {
+          const img = await loadImageElement(customDataUrl, false);
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          currentImageAspectRatio = (w && h) ? (w / h) : CHART_ASPECT_RATIO;
+        } catch (e) {
+          currentImageAspectRatio = CHART_ASPECT_RATIO;
+        }
+        setWrapperAspectRatio(currentImageAspectRatio);
       } else {
         currentBgMode = 'cme';
         currentBgDataUrl = null;
         chartWrapper.style.backgroundColor = '#000000';
         chartWrapper.style.backgroundImage = `url("${CME_BG_URL}")`;
-        chartWrapper.style.backgroundSize = '100% 100%';
+        try {
+          const img = await loadImageElement(CME_BG_URL, true);
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          currentImageAspectRatio = (w && h) ? (w / h) : CHART_ASPECT_RATIO;
+        } catch (e) {
+          currentImageAspectRatio = CHART_ASPECT_RATIO;
+        }
+        setWrapperAspectRatio(currentImageAspectRatio);
       }
     }
 
@@ -343,9 +379,9 @@
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(evt) {
-        applyBackground('custom', evt.target.result);
-        statusMsg.textContent = `Fondo personalizado "${file.name}" aplicado conservando su proporción.`;
+      reader.onload = async function(evt) {
+        await applyBackground('custom', evt.target.result);
+        statusMsg.textContent = `Fondo personalizado "${file.name}" aplicado.`;
       };
       reader.readAsDataURL(file);
     });
@@ -375,13 +411,13 @@
         .map((d, idx) => ({ ...d, originalIndex: idx }))
         .sort((a, b) => (a.nivel - b.nivel) || (a.originalIndex - b.originalIndex));
 
-      const width = 1080;
+      const width = 1000;
       const height = 1000;
       const cx = width / 2;
       const cy = height / 2;
 
-      const innerRadius = 56;
-      const maxOuterRadius = 475;
+      const innerRadius = 52;
+      const maxOuterRadius = 445;
 
       const maxScore = d3.max(data, d => d.puntuacion) || 100;
 
@@ -619,18 +655,6 @@
       }
     }
 
-    function loadImageElement(src, useCors = false) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        if (useCors) {
-          img.crossOrigin = 'anonymous';
-        }
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = src;
-      });
-    }
-
     document.getElementById('download-pdf-btn').addEventListener('click', async function() {
       const btn = this;
       const originalText = btn.textContent;
@@ -638,52 +662,55 @@
       btn.disabled = true;
 
       try {
+        const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
+        // Si tiene imagen de fondo, exporta con la relación de aspecto de la imagen;
+        // si tiene fondo de color, exporta con la relación de aspecto de la propia gráfica.
+        const targetAspect = hasSolidBg
+          ? CHART_ASPECT_RATIO
+          : (currentImageAspectRatio || CHART_ASPECT_RATIO);
+
+        const baseHeight = 2000;
+        const pdfHeight = baseHeight;
+        const pdfWidth = Math.round(baseHeight * targetAspect);
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({
-          orientation: 'landscape',
+          orientation: pdfWidth >= pdfHeight ? 'landscape' : 'portrait',
           unit: 'pt',
-          format: [PDF_WIDTH, PDF_HEIGHT]
+          format: [pdfWidth, pdfHeight]
         });
 
         const bgHex = SOLID_BACKGROUNDS[currentBgMode] || '#000000';
         doc.setFillColor(bgHex);
-        doc.rect(0, 0, PDF_WIDTH, PDF_HEIGHT, 'F');
+        doc.rect(0, 0, pdfWidth, pdfHeight, 'F');
 
-        if (currentBgMode === 'custom' && currentBgDataUrl) {
+        if (!hasSolidBg) {
+          const bgSource = (currentBgMode === 'custom' && currentBgDataUrl)
+            ? currentBgDataUrl
+            : CME_BG_URL;
           try {
-            const bgImg = await loadImageElement(currentBgDataUrl, false);
-            const imgW = bgImg.naturalWidth || bgImg.width;
-            const imgH = bgImg.naturalHeight || bgImg.height;
-            if (imgW && imgH) {
-              const scale = Math.min(PDF_WIDTH / imgW, PDF_HEIGHT / imgH);
-              const drawW = imgW * scale;
-              const drawH = imgH * scale;
-              const offsetX = (PDF_WIDTH - drawW) / 2;
-              const offsetY = (PDF_HEIGHT - drawH) / 2;
-              doc.addImage(currentBgDataUrl, offsetX, offsetY, drawW, drawH);
-            }
-          } catch (e) {
-            // Continuar con el color sólido de respaldo
-          }
-        } else if (!SOLID_BACKGROUNDS[currentBgMode]) {
-          try {
-            const bgImg = await loadImageElement(CME_BG_URL, true);
+            const bgImg = await loadImageElement(bgSource, !bgSource.startsWith('data:'));
             const canvas = document.createElement('canvas');
-            canvas.width = PDF_WIDTH;
-            canvas.height = PDF_HEIGHT;
+            canvas.width = pdfWidth;
+            canvas.height = pdfHeight;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(bgImg, 0, 0, PDF_WIDTH, PDF_HEIGHT);
-            doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, PDF_WIDTH, PDF_HEIGHT);
+            ctx.drawImage(bgImg, 0, 0, pdfWidth, pdfHeight);
+            doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
           } catch (e) {
-            // Continuar si el fondo externo no se puede cargar
+            // Continuar con el fondo de color si la imagen no está disponible
           }
         }
+
+        // La gráfica ocupa proporcionalmente el máximo espacio posible sin salirse
+        const chartSize = Math.min(pdfWidth, pdfHeight);
+        const chartX = (pdfWidth - chartSize) / 2;
+        const chartY = (pdfHeight - chartSize) / 2;
 
         const svgElement = document.getElementById('solar-chart');
         const clonedSvg = svgElement.cloneNode(true);
         clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clonedSvg.setAttribute('width', String(PDF_WIDTH));
-        clonedSvg.setAttribute('height', String(PDF_HEIGHT));
+        clonedSvg.setAttribute('width', String(chartSize));
+        clonedSvg.setAttribute('height', String(chartSize));
 
         const fontDataUrl = await getEmbeddedFontDataUrl();
         if (fontDataUrl) {
@@ -696,10 +723,10 @@
         }
 
         await doc.svg(clonedSvg, {
-          x: 0,
-          y: 0,
-          width: PDF_WIDTH,
-          height: PDF_HEIGHT
+          x: chartX,
+          y: chartY,
+          width: chartSize,
+          height: chartSize
         });
 
         doc.save('grafica-solar.pdf');
@@ -711,8 +738,8 @@
       }
     });
 
-    document.fonts.ready.then(() => {
-      applyBackground('cme');
+    document.fonts.ready.then(async () => {
+      await applyBackground('cme');
       renderSolarChart(SAMPLE_DATA);
     });
   </script>
