@@ -171,6 +171,13 @@
       letter-spacing: 0.3px;
     }
 
+    .leader-line {
+      stroke: #ffffff;
+      stroke-width: 1;
+      fill: none;
+      pointer-events: none;
+    }
+
     #tooltip {
       position: fixed;
       pointer-events: none;
@@ -229,7 +236,7 @@
     <div class="legend-item"><span class="legend-color" style="background:#BE1622;"></span> Nivel 4</div>
   </div>
 
-  <div id="status-msg">Mostrando datos de ejemplo. Usa "Cargar archivo" para importar tu tabla.</div>
+  <div id="status-msg">Mostrando datos de ejemplo. Usa "Cargar tabla" para importar tu archivo.</div>
 
   <div id="chart-wrapper">
     <svg id="solar-chart" viewBox="0 0 1080 1000" preserveAspectRatio="xMidYMid meet"></svg>
@@ -261,24 +268,29 @@
     let currentBgMode = 'cme';
     let currentBgDataUrl = null;
 
+    // 2 del nivel 0, 4 del nivel 1, 6 del nivel 2, 5 del nivel 3 y 4 del nivel 4
     const SAMPLE_DATA = [
       { nivel: 0, nombre: 'Chema Martínez Sanz', puntuacion: 74 },
       { nivel: 0, nombre: 'Luis Martínez Sanz', puntuacion: 74 },
+
       { nivel: 1, nombre: 'Alejandro Capilla Jiménez', puntuacion: 50 },
       { nivel: 1, nombre: 'Edu Pons Rivero', puntuacion: 261 },
       { nivel: 1, nombre: 'Martín Molina Gámez-Leyva', puntuacion: 363 },
       { nivel: 1, nombre: 'Pablo Sánchez Guardiola', puntuacion: 134 },
+
       { nivel: 2, nombre: 'Adrián Fernández Hernando', puntuacion: 241 },
       { nivel: 2, nombre: 'Alberto Sánchez Martí', puntuacion: 182 },
       { nivel: 2, nombre: 'Gonzalo Pérez Torres', puntuacion: 198 },
       { nivel: 2, nombre: 'Jaime Pinto Becerril', puntuacion: 221 },
       { nivel: 2, nombre: 'Pablo del Árbol Morillas', puntuacion: 248 },
       { nivel: 2, nombre: 'Pedro Carvajal Fernández', puntuacion: 235 },
+
       { nivel: 3, nombre: 'Álvaro González de Santa Ana', puntuacion: 341 },
       { nivel: 3, nombre: 'Ángel Ruiz Martínez', puntuacion: 229 },
       { nivel: 3, nombre: 'Hadrian Xia', puntuacion: 243 },
       { nivel: 3, nombre: 'Santiago Molina Gámez-Leyva', puntuacion: 356 },
       { nivel: 3, nombre: 'Sergio Fortis Soriano', puntuacion: 115 },
+
       { nivel: 4, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
       { nivel: 4, nombre: 'Agustín González Vallone', puntuacion: 418 },
       { nivel: 4, nombre: 'David Sánchez Guardiola', puntuacion: 374 },
@@ -306,7 +318,6 @@
         currentBgDataUrl = customDataUrl;
         chartWrapper.style.backgroundColor = '#000000';
         chartWrapper.style.backgroundImage = `url("${customDataUrl}")`;
-        // Conserva la proporción original de la imagen subida sin estirarla
         chartWrapper.style.backgroundSize = 'contain';
       } else {
         currentBgMode = 'cme';
@@ -381,8 +392,13 @@
       const stepAngle = totalAngle / n;
       const barAngle = stepAngle / 1.1;
 
+      // Longitud media de las barras (desde innerRadius hasta el extremo exterior de cada barra)
+      const meanBarLength = d3.mean(data, d => rScale(d.puntuacion) - innerRadius) || 0;
+      const meanOuterRadius = innerRadius + meanBarLength;
+
+      // Tamaño relativo del texto aumentado respecto a las barras
       const innerArcWidth = innerRadius * barAngle;
-      const fontSize = Math.max(6.5, Math.min(12.5, innerArcWidth * 1.45));
+      const fontSize = Math.max(8, Math.min(16.5, innerArcWidth * 1.95));
 
       const g = svg.append('g')
         .attr('transform', `translate(${cx}, ${cy})`);
@@ -421,10 +437,15 @@
           tooltip.style('opacity', 0);
         });
 
+      const lineGapFromBar = 4;
+      const textGapFromLine = 4;
+      const padding = 5;
+
       data.forEach((d, i) => {
         const midAngle = i * stepAngle + barAngle / 2;
         const barOuterR = rScale(d.puntuacion);
         const barLength = barOuterR - innerRadius;
+        const isShorterThanMean = barLength < meanBarLength;
 
         const normalizedAngle = ((midAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
         const isRightHalf = normalizedAngle < Math.PI;
@@ -434,9 +455,9 @@
           : `${d.puntuacion} ${d.nombre}`;
 
         const textWidth = measureSvgTextWidth(labelText, fontSize);
-        const padding = 5;
-        const fitsInside = barLength > (textWidth + padding * 2);
+        const fitsInside = !isShorterThanMean && (barLength > (textWidth + padding * 2));
 
+        // Si el texto es de nivel 0 y cabe dentro de la barra, va en negro; si no, en blanco
         const textColor = (d.nivel === 0 && fitsInside) ? '#000000' : '#ffffff';
 
         const angleDeg = (normalizedAngle * 180 / Math.PI) - 90;
@@ -445,7 +466,36 @@
         let textAnchor;
         let finalRotation;
 
-        if (isRightHalf) {
+        if (isShorterThanMean) {
+          // La distancia base desde el centro es innerRadius + longitud media de las barras
+          const lineStartR = barOuterR + lineGapFromBar;
+          const lineEndR = Math.max(lineStartR + 2, meanOuterRadius);
+
+          if (lineEndR > lineStartR) {
+            const x1 = Math.sin(normalizedAngle) * lineStartR;
+            const y1 = -Math.cos(normalizedAngle) * lineStartR;
+            const x2 = Math.sin(normalizedAngle) * lineEndR;
+            const y2 = -Math.cos(normalizedAngle) * lineEndR;
+
+            g.append('line')
+              .attr('class', 'leader-line')
+              .attr('x1', x1)
+              .attr('y1', y1)
+              .attr('x2', x2)
+              .attr('y2', y2)
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1);
+          }
+
+          radiusPos = lineEndR + textGapFromLine;
+          if (isRightHalf) {
+            finalRotation = angleDeg;
+            textAnchor = 'start';
+          } else {
+            finalRotation = angleDeg + 180;
+            textAnchor = 'end';
+          }
+        } else if (isRightHalf) {
           finalRotation = angleDeg;
           if (fitsInside) {
             radiusPos = barOuterR - padding;
@@ -577,7 +627,6 @@
       }
     }
 
-    // Dibuja la imagen manteniendo su relación de aspecto original (equivalente a background-size: contain)
     function drawContainImage(ctx, img, canvasW, canvasH) {
       const imgW = img.naturalWidth || img.width;
       const imgH = img.naturalHeight || img.height;
