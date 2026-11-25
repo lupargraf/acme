@@ -400,7 +400,6 @@
       }
     });
 
-    // Permite abrir el selector de archivo incluso si ya estaba elegida "Subir imagen..."
     bgSelect.addEventListener('click', function() {
       if (this.value === 'custom') {
         openCustomBackgroundPicker();
@@ -521,7 +520,6 @@
         const padding = 5;
         const fitsInside = barLength > (textWidth + padding * 2);
 
-        // Si el texto es de nivel 0 y cabe dentro de la barra, va en negro; si no, en blanco
         const textColor = (d.nivel === 0 && fitsInside) ? '#000000' : '#ffffff';
 
         const angleDeg = (normalizedAngle * 180 / Math.PI) - 90;
@@ -566,8 +564,6 @@
       });
     }
 
-    // Lee siempre las tres primeras columnas (índice 0 = Nivel, índice 1 = Nombre, índice 2 = Puntuación)
-    // hasta encontrar una fila sin nombre (segunda columna vacía)
     function parseWorkbookFirstThreeCols(arrayBuffer) {
       const data = new Uint8Array(arrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
@@ -592,7 +588,6 @@
 
         const nombre = String(rawNombre ?? '').trim();
 
-        // Parar en cuanto no haya nombre en la segunda columna
         if (!nombre) {
           break;
         }
@@ -613,17 +608,32 @@
       return parsed;
     }
 
+    function looksLikeHtml(buffer) {
+      const sample = new TextDecoder('utf-8', { fatal: false }).decode(buffer.slice(0, 512)).trim().toLowerCase();
+      return sample.startsWith('<!doctype html') || sample.startsWith('<html') || sample.includes('<body');
+    }
+
     async function fetchTableFromUrl(targetUrl, sourceLabel = 'URL') {
       const cleanUrl = String(targetUrl || '').trim();
       if (!cleanUrl) return;
 
       statusMsg.textContent = `Importando tabla desde ${sourceLabel}...`;
 
-      const candidateUrls = cleanUrl.includes('micloud.movistar.es/share/')
+      const baseCandidates = cleanUrl.includes('micloud.movistar.es/share/')
         ? [cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`, cleanUrl]
         : [cleanUrl];
 
-      for (const url of candidateUrls) {
+      const candidates = [];
+      for (const u of baseCandidates) {
+        candidates.push(u);
+        if (/^https?:\/\//i.test(u)) {
+          candidates.push(`https://corsproxy.io/?${encodeURIComponent(u)}`);
+        }
+      }
+
+      let receivedHtml = false;
+
+      for (const url of candidates) {
         try {
           const response = await fetch(url, { mode: 'cors' });
           if (!response.ok) continue;
@@ -631,7 +641,8 @@
           const contentType = (response.headers.get('content-type') || '').toLowerCase();
           const buffer = await response.arrayBuffer();
 
-          if (contentType.includes('text/html')) {
+          if (contentType.includes('text/html') || looksLikeHtml(buffer)) {
+            receivedHtml = true;
             continue;
           }
 
@@ -642,15 +653,16 @@
             return;
           }
         } catch (err) {
-          // Continuar al siguiente candidato o respaldo
+          // Probar siguiente candidato
         }
       }
 
-      statusMsg.textContent = `No se pudo leer la tabla desde ${sourceLabel} (restricción de red/CORS o enlace no directo). Mostrando datos de muestra.`;
+      statusMsg.textContent = receivedHtml
+        ? `La URL devolvió una página web (HTML) y no un archivo directo. Usa "Cargar archivo" o un enlace directo al Excel/CSV. Mostrando datos de muestra.`
+        : `No se pudo leer la tabla desde ${sourceLabel} (restricción de red/CORS o enlace no directo). Mostrando datos de muestra.`;
       renderSolarChart(SAMPLE_DATA);
     }
 
-    // Cargar tabla desde archivo local
     document.getElementById('load-file-btn').addEventListener('click', () => {
       tableFileInput.value = '';
       tableFileInput.click();
@@ -678,9 +690,8 @@
       reader.readAsArrayBuffer(file);
     });
 
-    // Cargar tabla desde URL introducida por el usuario
     document.getElementById('load-url-btn').addEventListener('click', () => {
-      const urlInput = window.prompt('Introduce la URL del archivo Excel o CSV:', DEFAULT_TABLE_URL);
+      const urlInput = window.prompt('Introduce la URL directa del archivo Excel o CSV:', DEFAULT_TABLE_URL);
       if (urlInput !== null && urlInput.trim() !== '') {
         document.fonts.ready.then(() => fetchTableFromUrl(urlInput.trim(), 'URL'));
       }
