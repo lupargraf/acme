@@ -235,16 +235,15 @@
     const DEFAULT_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
     const CLOUD_SHARE_URL = 'https://micloud.movistar.es/share/NE4SFGSGUMRGDGIY';
 
-    // Estado actual del fondo (por defecto el fondo solar)
     let currentBgMode = 'solar';
     let currentBgDataUrl = null;
 
+    // Datos de ejemplo con los niveles corregidos en los bordes de cada grupo
     const SAMPLE_DATA = [
-      { nivel: 0, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
       { nivel: 0, nombre: 'Chema Martínez Sanz', puntuacion: 74 },
       { nivel: 0, nombre: 'Luis Martínez Sanz', puntuacion: 74 },
-      { nivel: 0, nombre: 'Alejandro Capilla Jiménez', puntuacion: 50 },
-      { nivel: 0, nombre: 'Alejandro Velasco', puntuacion: 23 },
+      { nivel: 1, nombre: 'Alejandro Capilla Jiménez', puntuacion: 50 },
+      { nivel: 1, nombre: 'Alejandro Velasco', puntuacion: 23 },
       { nivel: 1, nombre: 'César Milena', puntuacion: 182 },
       { nivel: 1, nombre: 'Curro Jiménez Jiménez', puntuacion: 50 },
       { nivel: 1, nombre: 'Edu Pons Rivero', puntuacion: 261 },
@@ -318,7 +317,8 @@
       { nivel: 3, nombre: 'Ricardo Gullón Corral', puntuacion: 149 },
       { nivel: 3, nombre: 'Rodrigo Liñán Ruiz-Alba', puntuacion: 74 },
       { nivel: 3, nombre: 'Santiago Molina Gámez-Leyva', puntuacion: 356 },
-      { nivel: 4, nombre: 'Sergio Fortis Soriano', puntuacion: 115 },
+      { nivel: 3, nombre: 'Sergio Fortis Soriano', puntuacion: 115 },
+      { nivel: 4, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
       { nivel: 4, nombre: 'David Hurley', puntuacion: 15 },
       { nivel: 4, nombre: 'Agustín González Vallone', puntuacion: 418 },
       { nivel: 4, nombre: 'Alfonso Sánchez Vega', puntuacion: 358 },
@@ -346,7 +346,6 @@
     const bgSelect = document.getElementById('bg-select');
     const bgFileInput = document.getElementById('bg-file-input');
 
-    // Aplica el fondo seleccionado en pantalla
     function applyBackground(mode, customDataUrl = null) {
       currentBgMode = mode;
       if (mode === 'black') {
@@ -406,9 +405,10 @@
         return;
       }
 
+      // Orden estable por nivel (0 a 4) conservando el orden de cada registro
       const data = rawData
         .map((d, idx) => ({ ...d, originalIndex: idx }))
-        .sort((a, b) => a.nivel - b.nivel || a.originalIndex - b.originalIndex);
+        .sort((a, b) => (a.nivel - b.nivel) || (a.originalIndex - b.originalIndex));
 
       const width = 1080;
       const height = 1000;
@@ -527,7 +527,7 @@
       });
     }
 
-    // Parsea un ArrayBuffer de Excel tomando columnas 2, 3 y 4 (índices 1, 2 y 3)
+    // Lee columnas 2 (índice 1 = Nivel), 3 (índice 2 = Nombre) y 4 (índice 3 = Puntuación)
     // hasta encontrar una fila sin nombre
     function parseWorkbookColumns234(arrayBuffer) {
       const data = new Uint8Array(arrayBuffer);
@@ -535,35 +535,31 @@
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
 
-      // header: 1 devuelve un array de arrays (filas y columnas desde índice 0)
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
       if (!rows || rows.length === 0) return [];
 
       const parsed = [];
 
-      // Detectar si la primera fila es cabecera
       const firstRow = rows[0] || [];
       const col2First = String(firstRow[1] ?? '').trim().toLowerCase();
       const col3First = String(firstRow[2] ?? '').trim().toLowerCase();
-      const startRowIndex = (col2First.includes('nivel') || col3First.includes('nombre')) ? 1 : 0;
+      const startRowIndex = (col2First === 'nivel' || col3First === 'nombre') ? 1 : 0;
 
       for (let r = startRowIndex; r < rows.length; r++) {
         const row = rows[r] || [];
-        // Columna 2 -> índice 1 (Nivel)
-        // Columna 3 -> índice 2 (Nombre)
-        // Columna 4 -> índice 3 (Puntuación)
         const rawNivel = row[1];
         const rawNombre = row[2];
         const rawPuntuacion = row[3];
 
         const nombre = String(rawNombre ?? '').trim();
 
-        // Parar en cuanto no haya nombre
+        // Detener al encontrar una fila sin nombre
         if (!nombre) {
           break;
         }
 
-        const nivel = parseInt(String(rawNivel ?? '').trim(), 10);
+        const nivelNum = Number(String(rawNivel ?? '').trim().replace(',', '.'));
+        const nivel = Number.isInteger(nivelNum) ? nivelNum : Math.trunc(nivelNum);
         const puntuacion = parseFloat(String(rawPuntuacion ?? '0').replace(',', '.'));
 
         if (!isNaN(nivel) && nivel >= 0 && nivel <= 4) {
@@ -578,11 +574,9 @@
       return parsed;
     }
 
-    // Intenta obtener el archivo desde el enlace de MiCloud Movistar
     async function fetchCloudTable() {
       statusMsg.textContent = `Importando tabla desde ${CLOUD_SHARE_URL}...`;
 
-      // Posibles rutas de descarga directa si el enlace es un recurso compartido
       const candidateUrls = [
         CLOUD_SHARE_URL.endsWith('/download') ? CLOUD_SHARE_URL : `${CLOUD_SHARE_URL}/download`,
         CLOUD_SHARE_URL
@@ -596,7 +590,6 @@
           const contentType = (response.headers.get('content-type') || '').toLowerCase();
           const buffer = await response.arrayBuffer();
 
-          // Si devuelve HTML en vez de Excel/CSV, no es un archivo descargable directo
           if (contentType.includes('text/html')) {
             continue;
           }
@@ -612,7 +605,6 @@
         }
       }
 
-      // Si el servidor bloquea CORS o devuelve vista HTML de compartición, mostrar aviso y datos de respaldo
       statusMsg.textContent = 'No se pudo descargar el Excel directamente desde MiCloud (restricción de red/CORS). Mostrando datos de muestra.';
       renderSolarChart(SAMPLE_DATA);
     }
