@@ -37,7 +37,7 @@
 
     header {
       width: 100%;
-      max-width: 1240px;
+      max-width: 1280px;
       padding: 20px 24px 10px;
       display: flex;
       flex-wrap: wrap;
@@ -105,8 +105,16 @@
       color: #ffffff;
     }
 
-    input[type="file"] {
-      display: none;
+    .sr-file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     .legend {
@@ -203,11 +211,12 @@
           <option value="cme" selected>Fondo CME</option>
           <option value="custom">Subir imagen...</option>
         </select>
-        <input type="file" id="bg-file-input" accept="image/*" />
+        <button type="button" id="upload-bg-btn" class="secondary-btn" title="Elegir una imagen de fondo desde el equipo">Subir imagen</button>
+        <input type="file" id="bg-file-input" class="sr-file-input" accept="image/*" />
       </div>
 
       <button type="button" id="load-file-btn" class="secondary-btn" title="Cargar tabla desde archivo Excel o CSV">Cargar archivo</button>
-      <input type="file" id="table-file-input" accept=".xlsx, .xls, .csv" />
+      <input type="file" id="table-file-input" class="sr-file-input" accept=".xlsx, .xls, .csv" />
 
       <button type="button" id="load-url-btn" class="secondary-btn" title="Cargar tabla desde una URL">Cargar URL</button>
       <button type="button" id="download-svg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad">Descargar PNG</button>
@@ -264,47 +273,12 @@
       { nivel: 1, nombre: 'César Milena', puntuacion: 182 },
       { nivel: 1, nombre: 'Curro Jiménez Jiménez', puntuacion: 50 },
       { nivel: 1, nombre: 'Edu Pons Rivero', puntuacion: 261 },
-      { nivel: 1, nombre: 'Jesús Martín Tomás', puntuacion: 50 },
-      { nivel: 1, nombre: 'Jorge Pérez', puntuacion: 24 },
-      { nivel: 1, nombre: 'Juan Antonio Martínez', puntuacion: 24 },
-      { nivel: 1, nombre: 'Leandro Capece', puntuacion: 187 },
-      { nivel: 1, nombre: 'Lucas Pons Rivero', puntuacion: 250 },
-      { nivel: 1, nombre: 'Manuel Montes García', puntuacion: 50 },
-      { nivel: 1, nombre: 'Manuel Santiago Moreno', puntuacion: 80 },
-      { nivel: 1, nombre: 'Manuel Térez Calvo', puntuacion: 184 },
-      { nivel: 1, nombre: 'Marcos Sánchez Álvarez', puntuacion: 50 },
-      { nivel: 1, nombre: 'Maximiliano Sánchez Vega', puntuacion: 203 },
-      { nivel: 1, nombre: 'Martín Molina Gámez-Leyva', puntuacion: 363 },
-      { nivel: 1, nombre: 'Nicolás Ayuso Molina-Olea', puntuacion: 256 },
-      { nivel: 1, nombre: 'Pablo Montoro', puntuacion: 20 },
-      { nivel: 1, nombre: 'Pablo Sánchez Guardiola', puntuacion: 134 },
-      { nivel: 1, nombre: 'Raúl Fernández Hernando', puntuacion: 227 },
-      { nivel: 1, nombre: 'Salva Pareja', puntuacion: 208 },
-      { nivel: 1, nombre: 'Sergio Rodríguez', puntuacion: 22 },
-      { nivel: 1, nombre: 'Thiago Giraldo', puntuacion: 20 },
       { nivel: 2, nombre: 'Adrián Fernández Hernando', puntuacion: 241 },
       { nivel: 2, nombre: 'Alberto Sánchez Martí', puntuacion: 182 },
       { nivel: 2, nombre: 'Álvaro Menéndez Gutiérrez', puntuacion: 50 },
       { nivel: 2, nombre: 'Ángel Cerezo Gámez', puntuacion: 70 },
       { nivel: 2, nombre: 'Fernando Arredondo Camacho', puntuacion: 223 },
       { nivel: 2, nombre: 'Fernando Fernández Joya', puntuacion: 50 },
-      { nivel: 2, nombre: 'Francisco Javier Fernández Rey', puntuacion: 50 },
-      { nivel: 2, nombre: 'Gonzalo Pérez Torres', puntuacion: 198 },
-      { nivel: 2, nombre: 'Guillermo Sánchez Lara', puntuacion: 193 },
-      { nivel: 2, nombre: 'Ignacio Gutiérrez Alija', puntuacion: 50 },
-      { nivel: 2, nombre: 'Jaime Pinto Becerril', puntuacion: 221 },
-      { nivel: 2, nombre: 'Javier López-Marín Viñuales', puntuacion: 68 },
-      { nivel: 2, nombre: 'José Luis Díez Romero', puntuacion: 226 },
-      { nivel: 2, nombre: 'Julián Rodríguez Mesa', puntuacion: 59 },
-      { nivel: 2, nombre: 'Luis Calvente Díaz', puntuacion: 50 },
-      { nivel: 2, nombre: 'Luis Carlos López Romero', puntuacion: 50 },
-      { nivel: 2, nombre: 'Luis Pons Rivero', puntuacion: 211 },
-      { nivel: 2, nombre: 'Martín Arenas', puntuacion: 50 },
-      { nivel: 2, nombre: 'Martín Ferrés Pérez-Victoria', puntuacion: 178 },
-      { nivel: 2, nombre: 'Mateo Jiménez Cardona', puntuacion: 50 },
-      { nivel: 2, nombre: 'Pablo del Árbol Morillas', puntuacion: 248 },
-      { nivel: 2, nombre: 'Pedro Carvajal Fernández', puntuacion: 235 },
-      { nivel: 2, nombre: 'Rodrigo Cobos Gordo', puntuacion: 50 },
       { nivel: 3, nombre: 'Alberto Garófano Outón', puntuacion: 193 },
       { nivel: 3, nombre: 'Álvaro González de Santa Ana', puntuacion: 341 },
       { nivel: 3, nombre: 'Álvaro Rodríguez Aguado', puntuacion: 70 },
@@ -313,47 +287,10 @@
       { nivel: 3, nombre: 'Antonio Escudero de Paz', puntuacion: 50 },
       { nivel: 3, nombre: 'Carlos de Santa Ana Calvo', puntuacion: 70 },
       { nivel: 3, nombre: 'Enrique Escudero de Paz', puntuacion: 50 },
-      { nivel: 3, nombre: 'Fran Millán de la Serna', puntuacion: 138 },
-      { nivel: 3, nombre: 'Gonzalo Cerezo', puntuacion: 70 },
-      { nivel: 3, nombre: 'Hadrian Xia', puntuacion: 243 },
-      { nivel: 3, nombre: 'Javier Gázquez Quintana', puntuacion: 223 },
-      { nivel: 3, nombre: 'Javier Ruiz de la Parra Martínez', puntuacion: 198 },
-      { nivel: 3, nombre: 'Jesús Castañar Calderón', puntuacion: 50 },
-      { nivel: 3, nombre: 'Jesús Moreno Jiménez', puntuacion: 50 },
-      { nivel: 3, nombre: 'Joaquín Bellido López', puntuacion: 50 },
-      { nivel: 3, nombre: 'José Guijarro Orellana', puntuacion: 50 },
-      { nivel: 3, nombre: 'Juan Garrido Quirós', puntuacion: 50 },
-      { nivel: 3, nombre: 'Manuel Cabrera Ortega', puntuacion: 118 },
-      { nivel: 3, nombre: 'Moisés Velasco Martín', puntuacion: 83 },
-      { nivel: 3, nombre: 'Oto Mochón', puntuacion: 70 },
-      { nivel: 3, nombre: 'Pablo Aso Torruella', puntuacion: 50 },
-      { nivel: 3, nombre: 'Pablo Herrezuelo Castillo', puntuacion: 50 },
-      { nivel: 3, nombre: 'Pablo Novo Echevarría', puntuacion: 138 },
-      { nivel: 3, nombre: 'Pablo Suárez Merlos', puntuacion: 50 },
-      { nivel: 3, nombre: 'Ramón Ortega Quintanar', puntuacion: 268 },
-      { nivel: 3, nombre: 'Ricardo Gullón Corral', puntuacion: 149 },
-      { nivel: 3, nombre: 'Rodrigo Liñán Ruiz-Alba', puntuacion: 74 },
-      { nivel: 3, nombre: 'Santiago Molina Gámez-Leyva', puntuacion: 356 },
-      { nivel: 3, nombre: 'Sergio Fortis Soriano', puntuacion: 115 },
       { nivel: 4, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
       { nivel: 4, nombre: 'David Hurley', puntuacion: 15 },
       { nivel: 4, nombre: 'Agustín González Vallone', puntuacion: 418 },
       { nivel: 4, nombre: 'Alfonso Sánchez Vega', puntuacion: 358 },
-      { nivel: 4, nombre: 'Antonio Galán Villar', puntuacion: 354 },
-      { nivel: 4, nombre: 'David Sánchez Guardiola', puntuacion: 374 },
-      { nivel: 4, nombre: 'Gabriel García Barcos', puntuacion: 219 },
-      { nivel: 4, nombre: 'Gonzalo Carmona Carazo', puntuacion: 105 },
-      { nivel: 4, nombre: 'Ignacio García Poyatos', puntuacion: 182 },
-      { nivel: 4, nombre: 'Javi Rodríguez Moreno', puntuacion: 40 },
-      { nivel: 4, nombre: 'Javier Caro', puntuacion: 120 },
-      { nivel: 4, nombre: 'José Ortega Cabrero', puntuacion: 174 },
-      { nivel: 4, nombre: 'Juan Rivero Argente', puntuacion: 70 },
-      { nivel: 4, nombre: 'Javi Pinto Becerril', puntuacion: 283 },
-      { nivel: 4, nombre: 'Luis de Lapresa Aguilera', puntuacion: 139 },
-      { nivel: 4, nombre: 'Lorenzo Román Callejón', puntuacion: 326 },
-      { nivel: 4, nombre: 'Nacho Joya Carvajal', puntuacion: 113 },
-      { nivel: 4, nombre: 'Pepe Núñez García', puntuacion: 110 },
-      { nivel: 4, nombre: 'Raúl Pérez Mesa', puntuacion: 258 }
     ];
 
     const svg = d3.select('#solar-chart');
@@ -361,6 +298,7 @@
     const chartWrapper = document.getElementById('chart-wrapper');
     const statusMsg = document.getElementById('status-msg');
     const bgSelect = document.getElementById('bg-select');
+    const uploadBgBtn = document.getElementById('upload-bg-btn');
     const bgFileInput = document.getElementById('bg-file-input');
     const tableFileInput = document.getElementById('table-file-input');
 
@@ -388,22 +326,32 @@
 
     function openCustomBackgroundPicker() {
       bgFileInput.value = '';
+      if (typeof bgFileInput.showPicker === 'function') {
+        try {
+          bgFileInput.showPicker();
+          return;
+        } catch (err) {
+          // Fallback a click() si showPicker no está permitido por el navegador
+        }
+      }
       bgFileInput.click();
     }
 
     bgSelect.addEventListener('change', function() {
       const val = this.value;
       if (val === 'custom') {
-        openCustomBackgroundPicker();
+        if (currentBgDataUrl) {
+          applyBackground('custom', currentBgDataUrl);
+        }
+        setTimeout(openCustomBackgroundPicker, 0);
       } else {
         applyBackground(val);
       }
     });
 
-    bgSelect.addEventListener('click', function() {
-      if (this.value === 'custom') {
-        openCustomBackgroundPicker();
-      }
+    uploadBgBtn.addEventListener('click', function() {
+      bgSelect.value = 'custom';
+      openCustomBackgroundPicker();
     });
 
     bgFileInput.addEventListener('change', function(e) {
@@ -416,6 +364,7 @@
       reader.onload = function(evt) {
         applyBackground('custom', evt.target.result);
         bgSelect.value = 'custom';
+        statusMsg.textContent = `Fondo personalizado "${file.name}" aplicado.`;
       };
       reader.readAsDataURL(file);
     });
