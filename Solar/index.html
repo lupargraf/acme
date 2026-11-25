@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRÁFICA SOLAR</title>
+
+  <!-- Librerías externas vía CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    /* Carga de tipografía personalizada */
+    @font-face {
+      font-family: 'AbelCustom';
+      src: url('https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: 'AbelCustom', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Cabecera y controles */
+    header {
+      width: 100%;
+      max-width: 1200px;
+      padding: 20px 24px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      z-index: 10;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      letter-spacing: 3px;
+      font-weight: normal;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Botón principal de subida */
+    .upload-btn {
+      background-color: transparent;
+      color: #ffffff;
+      border: 1.5px solid #ffffff;
+      padding: 10px 22px;
+      font-family: 'AbelCustom', sans-serif;
+      font-size: 1.15rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-transform: lowercase;
+    }
+
+    .upload-btn:hover {
+      background-color: #ffffff;
+      color: #000000;
+    }
+
+    .secondary-btn {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #cccccc;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 10px 16px;
+      font-family: 'AbelCustom', sans-serif;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .secondary-btn:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Leyenda de niveles */
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 6px 16px;
+      font-size: 0.95rem;
+      color: #dddddd;
+      z-index: 10;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      border-radius: 2px;
+    }
+
+    /* Contenedor principal de la gráfica con fondo */
+    #chart-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1050px;
+      aspect-ratio: 1 / 1;
+      margin: 10px auto 30px;
+      background-color: #000000;
+      background-image: url('https://lupargraf.github.io/acme/Solar/fondosolar.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .bar-label {
+      font-family: 'AbelCustom', sans-serif;
+      fill: #ffffff;
+      pointer-events: none;
+      dominant-baseline: central;
+      letter-spacing: 0.3px;
+    }
+
+    /* Tooltip interactivo */
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(15, 15, 15, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+      padding: 8px 12px;
+      font-size: 0.95rem;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 100;
+    }
+
+    #status-msg {
+      font-size: 0.95rem;
+      color: #aaaaaa;
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>GRÁFICA SOLAR</h1>
+    <div class="controls">
+      <label for="excel-input" class="upload-btn">introduce tu tabla</label>
+      <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" />
+      <button type="button" id="download-svg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad">Descargar PNG</button>
+    </div>
+  </header>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-color" style="background:#FFED00;"></span> Nivel 0</div>
+    <div class="legend-item"><span class="legend-color" style="background:#F39200;"></span> Nivel 1</div>
+    <div class="legend-item"><span class="legend-color" style="background:#1D71B8;"></span> Nivel 2</div>
+    <div class="legend-item"><span class="legend-color" style="background:#3AAA35;"></span> Nivel 3</div>
+    <div class="legend-item"><span class="legend-color" style="background:#BE1622;"></span> Nivel 4</div>
+  </div>
+
+  <div id="status-msg">Mostrando datos de ejemplo. Sube un Excel con columnas: Nivel, Nombre, Puntuación.</div>
+
+  <div id="chart-wrapper">
+    <svg id="solar-chart" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+    // Mapa de colores por nivel según especificaciones
+    const LEVEL_COLORS = {
+      0: '#FFED00',
+      1: '#F39200',
+      2: '#1D71B8',
+      3: '#3AAA35',
+      4: '#BE1622'
+    };
+
+    // Datos de demostración iniciales para previsualizar el diseño
+    const SAMPLE_DATA = [
+      { nivel: 0, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
+      { nivel: 0, nombre: 'Chema Martínez Sanz', puntuacion: 74 },
+      { nivel: 0, nombre: 'Luis Martínez Sanz', puntuacion: 74 },
+      { nivel: 0, nombre: 'Alejandro Capilla Jiménez', puntuacion: 50 },
+      { nivel: 0, nombre: 'Alejandro Velasco', puntuacion: 23 },
+      { nivel: 1, nombre: 'César Milena', puntuacion: 182 },
+      { nivel: 1, nombre: 'Curro Jiménez Jiménez', puntuacion: 50 },
+      { nivel: 1, nombre: 'Edu Pons Rivero', puntuacion: 261 },
+      { nivel: 1, nombre: 'Jesús Martín Tomás', puntuacion: 50 },
+      { nivel: 1, nombre: 'Jorge Pérez', puntuacion: 24 },
+      { nivel: 1, nombre: 'Juan Antonio Martínez', puntuacion: 24 },
+      { nivel: 1, nombre: 'Leandro Capece', puntuacion: 187 },
+      { nivel: 1, nombre: 'Lucas Pons Rivero', puntuacion: 250 },
+      { nivel: 1, nombre: 'Manuel Montes García', puntuacion: 50 },
+      { nivel: 1, nombre: 'Manuel Santiago Moreno', puntuacion: 80 },
+      { nivel: 1, nombre: 'Manuel Térez Calvo', puntuacion: 184 },
+      { nivel: 1, nombre: 'Marcos Sánchez Álvarez', puntuacion: 50 },
+      { nivel: 1, nombre: 'Maximiliano Sánchez Vega', puntuacion: 203 },
+      { nivel: 1, nombre: 'Martín Molina Gámez-Leyva', puntuacion: 363 },
+      { nivel: 1, nombre: 'Nicolás Ayuso Molina-Olea', puntuacion: 256 },
+      { nivel: 1, nombre: 'Pablo Montoro', puntuacion: 20 },
+      { nivel: 1, nombre: 'Pablo Sánchez Guardiola', puntuacion: 134 },
+      { nivel: 1, nombre: 'Raúl Fernández Hernando', puntuacion: 227 },
+      { nivel: 1, nombre: 'Salva Pareja', puntuacion: 208 },
+      { nivel: 1, nombre: 'Sergio Rodríguez', puntuacion: 22 },
+      { nivel: 1, nombre: 'Thiago Giraldo', puntuacion: 20 },
+      { nivel: 2, nombre: 'Adrián Fernández Hernando', puntuacion: 241 },
+      { nivel: 2, nombre: 'Alberto Sánchez Martí', puntuacion: 182 },
+      { nivel: 2, nombre: 'Álvaro Menéndez Gutiérrez', puntuacion: 50 },
+      { nivel: 2, nombre: 'Ángel Cerezo Gámez', puntuacion: 70 },
+      { nivel: 2, nombre: 'Fernando Arredondo Camacho', puntuacion: 223 },
+      { nivel: 2, nombre: 'Fernando Fernández Joya', puntuacion: 50 },
+      { nivel: 2, nombre: 'Francisco Javier Fernández Rey', puntuacion: 50 },
+      { nivel: 2, nombre: 'Gonzalo Pérez Torres', puntuacion: 198 },
+      { nivel: 2, nombre: 'Guillermo Sánchez Lara', puntuacion: 193 },
+      { nivel: 2, nombre: 'Ignacio Gutiérrez Alija', puntuacion: 50 },
+      { nivel: 2, nombre: 'Jaime Pinto Becerril', puntuacion: 221 },
+      { nivel: 2, nombre: 'Javier López-Marín Viñuales', puntuacion: 68 },
+      { nivel: 2, nombre: 'José Luis Díez Romero', puntuacion: 226 },
+      { nivel: 2, nombre: 'Julián Rodríguez Mesa', puntuacion: 59 },
+      { nivel: 2, nombre: 'Luis Calvente Díaz', puntuacion: 50 },
+      { nivel: 2, nombre: 'Luis Carlos López Romero', puntuacion: 50 },
+      { nivel: 2, nombre: 'Luis Pons Rivero', puntuacion: 211 },
+      { nivel: 2, nombre: 'Martín Arenas', puntuacion: 50 },
+      { nivel: 2, nombre: 'Martín Ferrés Pérez-Victoria', puntuacion: 178 },
+      { nivel: 2, nombre: 'Mateo Jiménez Cardona', puntuacion: 50 },
+      { nivel: 2, nombre: 'Pablo del Árbol Morillas', puntuacion: 248 },
+      { nivel: 2, nombre: 'Pedro Carvajal Fernández', puntuacion: 235 },
+      { nivel: 2, nombre: 'Rodrigo Cobos Gordo', puntuacion: 50 },
+      { nivel: 3, nombre: 'Alberto Garófano Outón', puntuacion: 193 },
+      { nivel: 3, nombre: 'Álvaro González de Santa Ana', puntuacion: 341 },
+      { nivel: 3, nombre: 'Álvaro Rodríguez Aguado', puntuacion: 70 },
+      { nivel: 3, nombre: 'Anatole Esipov', puntuacion: 50 },
+      { nivel: 3, nombre: 'Ángel Ruiz Martínez', puntuacion: 229 },
+      { nivel: 3, nombre: 'Antonio Escudero de Paz', puntuacion: 50 },
+      { nivel: 3, nombre: 'Carlos de Santa Ana Calvo', puntuacion: 70 },
+      { nivel: 3, nombre: 'Enrique Escudero de Paz', puntuacion: 50 },
+      { nivel: 3, nombre: 'Fran Millán de la Serna', puntuacion: 138 },
+      { nivel: 3, nombre: 'Gonzalo Cerezo', puntuacion: 70 },
+      { nivel: 3, nombre: 'Hadrian Xia', puntuacion: 243 },
+      { nivel: 3, nombre: 'Javier Gázquez Quintana', puntuacion: 223 },
+      { nivel: 3, nombre: 'Javier Ruiz de la Parra Martínez', puntuacion: 198 },
+      { nivel: 3, nombre: 'Jesús Castañar Calderón', puntuacion: 50 },
+      { nivel: 3, nombre: 'Jesús Moreno Jiménez', puntuacion: 50 },
+      { nivel: 3, nombre: 'Joaquín Bellido López', puntuacion: 50 },
+      { nivel: 3, nombre: 'José Guijarro Orellana', puntuacion: 50 },
+      { nivel: 3, nombre: 'Juan Garrido Quirós', puntuacion: 50 },
+      { nivel: 3, nombre: 'Manuel Cabrera Ortega', puntuacion: 118 },
+      { nivel: 3, nombre: 'Moisés Velasco Martín', puntuacion: 83 },
+      { nivel: 3, nombre: 'Oto Mochón', puntuacion: 70 },
+      { nivel: 3, nombre: 'Pablo Aso Torruella', puntuacion: 50 },
+      { nivel: 3, nombre: 'Pablo Herrezuelo Castillo', puntuacion: 50 },
+      { nivel: 3, nombre: 'Pablo Novo Echevarría', puntuacion: 138 },
+      { nivel: 3, nombre: 'Pablo Suárez Merlos', puntuacion: 50 },
+      { nivel: 3, nombre: 'Ramón Ortega Quintanar', puntuacion: 268 },
+      { nivel: 3, nombre: 'Ricardo Gullón Corral', puntuacion: 149 },
+      { nivel: 3, nombre: 'Rodrigo Liñán Ruiz-Alba', puntuacion: 74 },
+      { nivel: 3, nombre: 'Santiago Molina Gámez-Leyva', puntuacion: 356 },
+      { nivel: 4, nombre: 'Sergio Fortis Soriano', puntuacion: 115 },
+      { nivel: 4, nombre: 'David Hurley', puntuacion: 15 },
+      { nivel: 4, nombre: 'Agustín González Vallone', puntuacion: 418 },
+      { nivel: 4, nombre: 'Alfonso Sánchez Vega', puntuacion: 358 },
+      { nivel: 4, nombre: 'Antonio Galán Villar', puntuacion: 354 },
+      { nivel: 4, nombre: 'David Sánchez Guardiola', puntuacion: 374 },
+      { nivel: 4, nombre: 'Gabriel García Barcos', puntuacion: 219 },
+      { nivel: 4, nombre: 'Gonzalo Carmona Carazo', puntuacion: 105 },
+      { nivel: 4, nombre: 'Ignacio García Poyatos', puntuacion: 182 },
+      { nivel: 4, nombre: 'Javi Rodríguez Moreno', puntuacion: 40 },
+      { nivel: 4, nombre: 'Javier Caro', puntuacion: 120 },
+      { nivel: 4, nombre: 'José Ortega Cabrero', puntuacion: 174 },
+      { nivel: 4, nombre: 'Juan Rivero Argente', puntuacion: 70 },
+      { nivel: 4, nombre: 'Javi Pinto Becerril', puntuacion: 283 },
+      { nivel: 4, nombre: 'Luis de Lapresa Aguilera', puntuacion: 139 },
+      { nivel: 4, nombre: 'Lorenzo Román Callejón', puntuacion: 326 },
+      { nivel: 4, nombre: 'Nacho Joya Carvajal', puntuacion: 113 },
+      { nivel: 4, nombre: 'Pepe Núñez García', puntuacion: 110 },
+      { nivel: 4, nombre: 'Raúl Pérez Mesa', puntuacion: 258 }
+    ];
+
+    const svg = d3.select('#solar-chart');
+    const tooltip = d3.select('#tooltip');
+    const statusMsg = document.getElementById('status-msg');
+
+    // Función para medir con exactitud el ancho en píxeles de un texto SVG
+    function measureSvgTextWidth(text, fontSize) {
+      const tempText = svg.append('text')
+        .attr('class', 'bar-label')
+        .style('font-size', `${fontSize}px`)
+        .style('opacity', 0)
+        .text(text);
+      const width = tempText.node().getComputedTextLength();
+      tempText.remove();
+      return width;
+    }
+
+    function renderSolarChart(rawData) {
+      svg.selectAll('*').remove();
+
+      if (!rawData || rawData.length === 0) {
+        statusMsg.textContent = 'No se encontraron registros válidos en el archivo.';
+        return;
+      }
+
+      // Ordenar por Nivel (0 a 4) manteniendo el orden interno de aparición
+      const data = rawData
+        .map((d, idx) => ({ ...d, originalIndex: idx }))
+        .sort((a, b) => a.nivel - b.nivel || a.originalIndex - b.originalIndex);
+
+      const width = 1000;
+      const height = 1000;
+      const cx = width / 2;
+      const cy = height / 2;
+
+      // Radios del gráfico radial
+      const innerRadius = 56;
+      const maxOuterRadius = 475;
+
+      const maxScore = d3.max(data, d => d.puntuacion) || 100;
+
+      // Escala radial para longitud de barras
+      const rScale = d3.scaleLinear()
+        .domain([0, maxScore])
+        .range([innerRadius, maxOuterRadius]);
+
+      const n = data.length;
+      const totalAngle = 2 * Math.PI;
+      const stepAngle = totalAngle / n;
+
+      // Espacio del 10% de la anchura de la barra entre cada una:
+      // barAngle + 0.10 * barAngle = stepAngle => barAngle = stepAngle / 1.1
+      const barAngle = stepAngle / 1.1;
+
+      // Cálculo dinámico del tamaño de fuente según la anchura angular en el radio interior
+      const innerArcWidth = innerRadius * barAngle;
+      const fontSize = Math.max(6.5, Math.min(12.5, innerArcWidth * 1.45));
+
+      const g = svg.append('g')
+        .attr('transform', `translate(${cx}, ${cy})`);
+
+      // Círculo central negro para limpiar el origen de las barras
+      g.append('circle')
+        .attr('r', innerRadius - 1)
+        .attr('fill', '#000000');
+
+      const arcGenerator = d3.arc()
+        .innerRadius(innerRadius)
+        .outerRadius(d => rScale(d.puntuacion))
+        .startAngle((d, i) => i * stepAngle)
+        .endAngle((d, i) => i * stepAngle + barAngle);
+
+      // Dibujo de barras
+      g.selectAll('.bar')
+        .data(data)
+        .enter()
+        .append('path')
+        .attr('class', 'bar')
+        .attr('d', arcGenerator)
+        .attr('fill', d => LEVEL_COLORS[d.nivel] || '#FFFFFF')
+        .style('cursor', 'pointer')
+        .on('mouseover', function(event, d) {
+          d3.select(this).style('opacity', 0.85);
+          tooltip
+            .style('opacity', 1)
+            .html(`<strong>${d.nombre}</strong><br/>Nivel ${d.nivel} · Puntuación: ${d.puntuacion}`);
+        })
+        .on('mousemove', function(event) {
+          tooltip
+            .style('left', `${event.clientX + 14}px`)
+            .style('top', `${event.clientY - 20}px`);
+        })
+        .on('mouseout', function() {
+          d3.select(this).style('opacity', 1);
+          tooltip.style('opacity', 0);
+        });
+
+      // Posicionamiento y orientación de textos (Nombre y Puntuación)
+      data.forEach((d, i) => {
+        // Ángulo medio de la barra en sistema D3 (0 = arriba/12 en punto, sentido horario)
+        const midAngle = i * stepAngle + barAngle / 2;
+        const barOuterR = rScale(d.puntuacion);
+        const barLength = barOuterR - innerRadius;
+
+        // Determinar si la barra está en la mitad derecha [0, PI) o izquierda [PI, 2*PI)
+        const normalizedAngle = ((midAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
+        const isRightHalf = normalizedAngle < Math.PI;
+
+        // Formato del texto:
+        // Mitad derecha: Nombre Puntuación (de centro hacia afuera)
+        // Mitad izquierda: Puntuación Nombre (de afuera hacia adentro)
+        const labelText = isRightHalf
+          ? `${d.nombre} ${d.puntuacion}`
+          : `${d.puntuacion} ${d.nombre}`;
+
+        const textWidth = measureSvgTextWidth(labelText, fontSize);
+        const padding = 5;
+
+        // Condición: ¿Longitud de la barra mayor que longitud del texto?
+        const fitsInside = barLength > (textWidth + padding * 2);
+
+        // Conversión de ángulo D3 (0 arriba) a ángulo estándar SVG (0 derecha) en grados
+        const angleDeg = (normalizedAngle * 180 / Math.PI) - 90;
+
+        let radiusPos;
+        let textAnchor;
+        let finalRotation;
+
+        if (isRightHalf) {
+          // Mitad derecha: lectura de centro hacia afuera
+          finalRotation = angleDeg;
+          if (fitsInside) {
+            // Dentro de la barra, justificado casi al borde exterior
+            radiusPos = barOuterR - padding;
+            textAnchor = 'end';
+          } else {
+            // A continuación de la barra hacia afuera
+            radiusPos = barOuterR + padding;
+            textAnchor = 'start';
+          }
+        } else {
+          // Mitad izquierda: rotado 180° para leerse de afuera hacia adentro
+          finalRotation = angleDeg + 180;
+          if (fitsInside) {
+            // Dentro de la barra, justificado casi al borde exterior
+            radiusPos = barOuterR - padding;
+            textAnchor = 'start';
+          } else {
+            // A continuación de la barra hacia afuera
+            radiusPos = barOuterR + padding;
+            textAnchor = 'end';
+          }
+        }
+
+        // Coordenadas cartesianas del punto de anclaje del texto
+        const x = Math.sin(normalizedAngle) * radiusPos;
+        const y = -Math.cos(normalizedAngle) * radiusPos;
+
+        g.append('text')
+          .attr('class', 'bar-label')
+          .attr('transform', `translate(${x}, ${y}) rotate(${finalRotation})`)
+          .attr('text-anchor', textAnchor)
+          .style('font-size', `${fontSize}px`)
+          .text(labelText);
+      });
+    }
+
+    // Normalización de nombres de columnas del Excel
+    function normalizeKey(key) {
+      return String(key || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    // Lectura del archivo Excel mediante SheetJS
+    document.getElementById('excel-input').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+          const parsedData = [];
+
+          jsonRows.forEach(row => {
+            const keys = Object.keys(row);
+            let nivelVal = null;
+            let nombreVal = '';
+            let puntuacionVal = null;
+
+            keys.forEach(k => {
+              const nk = normalizeKey(k);
+              if (nk.includes('nivel') || nk === 'level') {
+                nivelVal = parseInt(row[k], 10);
+              } else if (nk.includes('nombre') || nk === 'name') {
+                nombreVal = String(row[k]).trim();
+              } else if (nk.includes('puntuacion') || nk.includes('puntos') || nk === 'score') {
+                const num = parseFloat(String(row[k]).replace(',', '.'));
+                puntuacionVal = isNaN(num) ? 0 : num;
+              }
+            });
+
+            // Respaldo posicional si las cabeceras tienen nombres distintos
+            if ((nivelVal === null || isNaN(nivelVal)) && keys.length >= 3) {
+              nivelVal = parseInt(row[keys[0]], 10);
+              nombreVal = String(row[keys[1]]).trim();
+              puntuacionVal = parseFloat(String(row[keys[2]]).replace(',', '.')) || 0;
+            }
+
+            if (!isNaN(nivelVal) && nivelVal >= 0 && nivelVal <= 4 && nombreVal !== '') {
+              parsedData.push({
+                nivel: nivelVal,
+                nombre: nombreVal,
+                puntuacion: puntuacionVal || 0
+              });
+            }
+          });
+
+          if (parsedData.length > 0) {
+            statusMsg.textContent = `Archivo "${file.name}" cargado correctamente (${parsedData.length} registros).`;
+            renderSolarChart(parsedData);
+          } else {
+            statusMsg.textContent = 'Error: Asegúrate de que el Excel tenga las columnas Nivel (0-4), Nombre y Puntuación.';
+          }
+        } catch (err) {
+          console.error(err);
+          statusMsg.textContent = 'Error al procesar el archivo Excel. Verifica el formato.';
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Exportar visualización a PNG combinando el fondo y el SVG
+    document.getElementById('download-svg-btn').addEventListener('click', function() {
+      const svgElement = document.getElementById('solar-chart');
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgElement);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 2000;
+      canvas.height = 2000;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const bgImg = new Image();
+      bgImg.crossOrigin = 'anonymous';
+      bgImg.onload = function() {
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        drawSvgOnCanvas();
+      };
+      bgImg.onerror = function() {
+        drawSvgOnCanvas();
+      };
+      bgImg.src = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
+
+      function drawSvgOnCanvas() {
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = function() {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          const link = document.createElement('a');
+          link.download = 'grafica-solar.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        };
+        img.src = url;
+      }
+    });
+
+    // Esperar a que cargue la fuente antes del primer renderizado para medir bien los textos
+    document.fonts.ready.then(() => {
+      renderSolarChart(SAMPLE_DATA);
+    });
+  </script>
+</body>
+</html>
