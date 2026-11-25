@@ -392,13 +392,16 @@
       const stepAngle = totalAngle / n;
       const barAngle = stepAngle / 1.1;
 
-      // Longitud media de las barras (desde innerRadius hasta el extremo exterior de cada barra)
+      // Esta medida de longitud media + líneas conectoras + mayor tamaño de texto
+      // se aplica únicamente cuando hay 100 o más nombres.
+      const useDenseLayout = n >= 100;
       const meanBarLength = d3.mean(data, d => rScale(d.puntuacion) - innerRadius) || 0;
       const meanOuterRadius = innerRadius + meanBarLength;
 
-      // Tamaño relativo del texto aumentado respecto a las barras
       const innerArcWidth = innerRadius * barAngle;
-      const fontSize = Math.max(8, Math.min(16.5, innerArcWidth * 1.95));
+      const fontSize = useDenseLayout
+        ? Math.max(8, Math.min(16.5, innerArcWidth * 1.95))
+        : Math.max(6.5, Math.min(12.5, innerArcWidth * 1.45));
 
       const g = svg.append('g')
         .attr('transform', `translate(${cx}, ${cy})`);
@@ -445,7 +448,7 @@
         const midAngle = i * stepAngle + barAngle / 2;
         const barOuterR = rScale(d.puntuacion);
         const barLength = barOuterR - innerRadius;
-        const isShorterThanMean = barLength < meanBarLength;
+        const isShorterThanMean = useDenseLayout && (barLength < meanBarLength);
 
         const normalizedAngle = ((midAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
         const isRightHalf = normalizedAngle < Math.PI;
@@ -467,7 +470,6 @@
         let finalRotation;
 
         if (isShorterThanMean) {
-          // La distancia base desde el centro es innerRadius + longitud media de las barras
           const lineStartR = barOuterR + lineGapFromBar;
           const lineEndR = Math.max(lineStartR + 2, meanOuterRadius);
 
