@@ -30,7 +30,8 @@
       background-color: #000000;
       color: #ffffff;
       font-family: 'AbelCustom', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      min-height: 100vh;
+      min-height: 100dvh;
+      width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -39,18 +40,17 @@
 
     header {
       width: 100%;
-      max-width: 1240px;
-      padding: 20px 24px 10px;
+      padding: 10px 18px 4px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
       z-index: 10;
     }
 
     h1 {
-      font-size: 2.2rem;
+      font-size: 1.85rem;
       letter-spacing: 3px;
       font-weight: normal;
       color: #ffffff;
@@ -60,7 +60,7 @@
     .controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
@@ -71,7 +71,7 @@
     }
 
     label.control-label {
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       color: #cccccc;
     }
 
@@ -79,9 +79,9 @@
       background-color: #111111;
       color: #ffffff;
       border: 1.5px solid rgba(255, 255, 255, 0.45);
-      padding: 8px 12px;
+      padding: 6px 10px;
       font-family: 'AbelCustom', sans-serif;
-      font-size: 1rem;
+      font-size: 0.95rem;
       cursor: pointer;
       outline: none;
     }
@@ -95,9 +95,9 @@
       background-color: rgba(255, 255, 255, 0.08);
       color: #eeeeee;
       border: 1px solid rgba(255, 255, 255, 0.3);
-      padding: 8px 14px;
+      padding: 6px 12px;
       font-family: 'AbelCustom', sans-serif;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -121,11 +121,11 @@
 
     .legend {
       display: flex;
-      gap: 16px;
+      gap: 14px;
       flex-wrap: wrap;
       justify-content: center;
-      padding: 6px 16px;
-      font-size: 0.95rem;
+      padding: 2px 12px;
+      font-size: 0.9rem;
       color: #dddddd;
       z-index: 10;
     }
@@ -133,14 +133,32 @@
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
     .legend-color {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       display: inline-block;
       border-radius: 2px;
+    }
+
+    #status-msg {
+      font-size: 0.88rem;
+      color: #aaaaaa;
+      text-align: center;
+      padding: 2px 12px 4px;
+    }
+
+    /* Zona de visualización que aprovecha al máximo el espacio disponible de la ventana */
+    #stage {
+      flex: 1 1 auto;
+      width: 100%;
+      padding: 4px 10px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
     }
 
     /* Contenedor adaptable a la relación de aspecto activa (imagen o gráfica) */
@@ -148,10 +166,9 @@
       position: relative;
       width: auto;
       height: auto;
-      max-width: 95vw;
-      max-height: 78vh;
+      max-width: 100%;
+      max-height: calc(100dvh - 125px);
       aspect-ratio: 1 / 1;
-      margin: 10px auto 30px;
       background-color: #000000;
       background-size: 100% 100%;
       background-position: center;
@@ -194,14 +211,6 @@
       transition: opacity 0.15s ease;
       z-index: 100;
     }
-
-    #status-msg {
-      font-size: 0.95rem;
-      color: #aaaaaa;
-      text-align: center;
-      margin-top: 4px;
-      padding: 0 16px;
-    }
   </style>
 </head>
 <body>
@@ -241,9 +250,11 @@
 
   <div id="status-msg">Mostrando datos de ejemplo. Usa "Cargar tabla" para importar tu archivo.</div>
 
-  <div id="chart-wrapper">
-    <!-- La gráfica radial ocupa proporcionalmente el máximo espacio posible sin salirse -->
-    <svg id="solar-chart" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="stage">
+    <div id="chart-wrapper">
+      <!-- La gráfica radial ocupa proporcionalmente el máximo espacio posible sin salirse -->
+      <svg id="solar-chart" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
   </div>
 
   <div id="tooltip"></div>
@@ -303,6 +314,7 @@
 
     const svg = d3.select('#solar-chart');
     const tooltip = d3.select('#tooltip');
+    const stage = document.getElementById('stage');
     const chartWrapper = document.getElementById('chart-wrapper');
     const statusMsg = document.getElementById('status-msg');
     const bgSelect = document.getElementById('bg-select');
@@ -310,10 +322,38 @@
     const bgFileInput = document.getElementById('bg-file-input');
     const tableFileInput = document.getElementById('table-file-input');
 
-    function setWrapperAspectRatio(ratio) {
+    function fitChartWrapper(ratio) {
       const safeRatio = (ratio && isFinite(ratio) && ratio > 0) ? ratio : CHART_ASPECT_RATIO;
       chartWrapper.style.aspectRatio = `${safeRatio} / 1`;
+
+      const stageRect = stage.getBoundingClientRect();
+      const availW = Math.max(200, stageRect.width - 8);
+      const availH = Math.max(200, stageRect.height - 8);
+
+      let boxW = availW;
+      let boxH = boxW / safeRatio;
+
+      if (boxH > availH) {
+        boxH = availH;
+        boxW = boxH * safeRatio;
+      }
+
+      chartWrapper.style.maxWidth = '100%';
+      chartWrapper.style.maxHeight = '100%';
+      chartWrapper.style.width = `${Math.floor(boxW)}px`;
+      chartWrapper.style.height = `${Math.floor(boxH)}px`;
     }
+
+    function getActiveAspectRatio() {
+      const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
+      return hasSolidBg
+        ? CHART_ASPECT_RATIO
+        : (currentImageAspectRatio || CHART_ASPECT_RATIO);
+    }
+
+    window.addEventListener('resize', () => {
+      fitChartWrapper(getActiveAspectRatio());
+    });
 
     function loadImageElement(src, useCors = false) {
       return new Promise((resolve, reject) => {
@@ -334,7 +374,7 @@
         currentImageAspectRatio = null;
         chartWrapper.style.backgroundColor = SOLID_BACKGROUNDS[mode];
         chartWrapper.style.backgroundImage = 'none';
-        setWrapperAspectRatio(CHART_ASPECT_RATIO);
+        fitChartWrapper(CHART_ASPECT_RATIO);
       } else if (mode === 'custom' && customDataUrl) {
         currentBgMode = 'custom';
         currentBgDataUrl = customDataUrl;
@@ -348,7 +388,7 @@
         } catch (e) {
           currentImageAspectRatio = CHART_ASPECT_RATIO;
         }
-        setWrapperAspectRatio(currentImageAspectRatio);
+        fitChartWrapper(currentImageAspectRatio);
       } else {
         currentBgMode = 'cme';
         currentBgDataUrl = null;
@@ -362,7 +402,7 @@
         } catch (e) {
           currentImageAspectRatio = CHART_ASPECT_RATIO;
         }
-        setWrapperAspectRatio(currentImageAspectRatio);
+        fitChartWrapper(currentImageAspectRatio);
       }
     }
 
@@ -417,7 +457,7 @@
       const cy = height / 2;
 
       const innerRadius = 52;
-      const maxOuterRadius = 445;
+      const maxOuterRadius = 472;
 
       const maxScore = d3.max(data, d => d.puntuacion) || 100;
 
@@ -663,11 +703,7 @@
 
       try {
         const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
-        // Si tiene imagen de fondo, exporta con la relación de aspecto de la imagen;
-        // si tiene fondo de color, exporta con la relación de aspecto de la propia gráfica.
-        const targetAspect = hasSolidBg
-          ? CHART_ASPECT_RATIO
-          : (currentImageAspectRatio || CHART_ASPECT_RATIO);
+        const targetAspect = getActiveAspectRatio();
 
         const baseHeight = 2000;
         const pdfHeight = baseHeight;
@@ -701,7 +737,6 @@
           }
         }
 
-        // La gráfica ocupa proporcionalmente el máximo espacio posible sin salirse
         const chartSize = Math.min(pdfWidth, pdfHeight);
         const chartX = (pdfWidth - chartSize) / 2;
         const chartY = (pdfHeight - chartSize) / 2;
@@ -741,6 +776,7 @@
     document.fonts.ready.then(async () => {
       await applyBackground('cme');
       renderSolarChart(SAMPLE_DATA);
+      requestAnimationFrame(() => fitChartWrapper(getActiveAspectRatio()));
     });
   </script>
 </body>
