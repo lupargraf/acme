@@ -37,13 +37,13 @@
 
     header {
       width: 100%;
-      max-width: 1200px;
+      max-width: 1240px;
       padding: 20px 24px 10px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       z-index: 10;
     }
 
@@ -65,7 +65,7 @@
     .control-group {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     label.control-label {
@@ -77,7 +77,7 @@
       background-color: #111111;
       color: #ffffff;
       border: 1.5px solid rgba(255, 255, 255, 0.45);
-      padding: 9px 14px;
+      padding: 8px 12px;
       font-family: 'AbelCustom', sans-serif;
       font-size: 1rem;
       cursor: pointer;
@@ -93,7 +93,7 @@
       background-color: rgba(255, 255, 255, 0.08);
       color: #eeeeee;
       border: 1px solid rgba(255, 255, 255, 0.3);
-      padding: 9px 15px;
+      padding: 8px 14px;
       font-family: 'AbelCustom', sans-serif;
       font-size: 0.95rem;
       cursor: pointer;
@@ -158,7 +158,6 @@
 
     .bar-label {
       font-family: 'AbelCustom', sans-serif;
-      fill: #ffffff;
       pointer-events: none;
       dominant-baseline: central;
       letter-spacing: 0.3px;
@@ -195,13 +194,22 @@
       <div class="control-group">
         <label for="bg-select" class="control-label">Fondo:</label>
         <select id="bg-select" class="bg-select" aria-label="Elegir fondo de la gráfica">
-          <option value="solar" selected>Fondo Solar</option>
-          <option value="black">Negro liso</option>
+          <option value="black">negro</option>
+          <option value="navy">azul marino</option>
+          <option value="darkgreen">verde oscuro</option>
+          <option value="purple">morado</option>
+          <option value="maroon">granate</option>
+          <option value="coffee">café</option>
+          <option value="cme" selected>Fondo CME</option>
           <option value="custom">Subir imagen...</option>
         </select>
         <input type="file" id="bg-file-input" accept="image/*" />
       </div>
-      <button type="button" id="reload-cloud-btn" class="secondary-btn" title="Volver a cargar la tabla desde MiCloud">Recargar tabla</button>
+
+      <button type="button" id="load-file-btn" class="secondary-btn" title="Cargar tabla desde archivo Excel o CSV">Cargar archivo</button>
+      <input type="file" id="table-file-input" accept=".xlsx, .xls, .csv" />
+
+      <button type="button" id="load-url-btn" class="secondary-btn" title="Cargar tabla desde una URL">Cargar URL</button>
       <button type="button" id="download-svg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad">Descargar PNG</button>
     </div>
   </header>
@@ -231,14 +239,23 @@
       4: '#BE1622'
     };
 
+    const SOLID_BACKGROUNDS = {
+      black: '#000000',
+      navy: '#081838',
+      darkgreen: '#0B2E1A',
+      purple: '#240C38',
+      maroon: '#3B0914',
+      coffee: '#2B160C'
+    };
+
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
-    const DEFAULT_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
-    const CLOUD_SHARE_URL = 'https://micloud.movistar.es/share/NE4SFGSGUMRGDGIY';
+    const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
+    const DEFAULT_TABLE_URL = 'https://micloud.movistar.es/share/NE4SFGSGUMRGDGIY';
 
-    let currentBgMode = 'solar';
+    let currentBgMode = 'cme';
     let currentBgDataUrl = null;
+    let previousBgMode = 'cme';
 
-    // Datos de ejemplo con los niveles corregidos en los bordes de cada grupo
     const SAMPLE_DATA = [
       { nivel: 0, nombre: 'Chema Martínez Sanz', puntuacion: 74 },
       { nivel: 0, nombre: 'Luis Martínez Sanz', puntuacion: 74 },
@@ -345,35 +362,55 @@
     const statusMsg = document.getElementById('status-msg');
     const bgSelect = document.getElementById('bg-select');
     const bgFileInput = document.getElementById('bg-file-input');
+    const tableFileInput = document.getElementById('table-file-input');
 
     function applyBackground(mode, customDataUrl = null) {
-      currentBgMode = mode;
-      if (mode === 'black') {
+      if (SOLID_BACKGROUNDS[mode]) {
+        currentBgMode = mode;
+        previousBgMode = mode;
         currentBgDataUrl = null;
+        chartWrapper.style.backgroundColor = SOLID_BACKGROUNDS[mode];
         chartWrapper.style.backgroundImage = 'none';
       } else if (mode === 'custom' && customDataUrl) {
+        currentBgMode = 'custom';
+        previousBgMode = 'custom';
         currentBgDataUrl = customDataUrl;
+        chartWrapper.style.backgroundColor = '#000000';
         chartWrapper.style.backgroundImage = `url("${customDataUrl}")`;
       } else {
-        currentBgMode = 'solar';
+        currentBgMode = 'cme';
+        previousBgMode = 'cme';
         currentBgDataUrl = null;
-        chartWrapper.style.backgroundImage = `url("${DEFAULT_BG_URL}")`;
+        chartWrapper.style.backgroundColor = '#000000';
+        chartWrapper.style.backgroundImage = `url("${CME_BG_URL}")`;
       }
+    }
+
+    function openCustomBackgroundPicker() {
+      bgFileInput.value = '';
+      bgFileInput.click();
     }
 
     bgSelect.addEventListener('change', function() {
       const val = this.value;
       if (val === 'custom') {
-        bgFileInput.click();
+        openCustomBackgroundPicker();
       } else {
         applyBackground(val);
       }
     });
 
+    // Permite abrir el selector de archivo incluso si ya estaba elegida "Subir imagen..."
+    bgSelect.addEventListener('click', function() {
+      if (this.value === 'custom') {
+        openCustomBackgroundPicker();
+      }
+    });
+
     bgFileInput.addEventListener('change', function(e) {
-      const file = e.target.files[0];
+      const file = e.target.files && e.target.files[0];
       if (!file) {
-        bgSelect.value = currentBgMode === 'custom' && currentBgDataUrl ? 'custom' : 'solar';
+        bgSelect.value = currentBgMode === 'custom' && currentBgDataUrl ? 'custom' : previousBgMode;
         return;
       }
       const reader = new FileReader();
@@ -405,7 +442,6 @@
         return;
       }
 
-      // Orden estable por nivel (0 a 4) conservando el orden de cada registro
       const data = rawData
         .map((d, idx) => ({ ...d, originalIndex: idx }))
         .sort((a, b) => (a.nivel - b.nivel) || (a.originalIndex - b.originalIndex));
@@ -485,6 +521,9 @@
         const padding = 5;
         const fitsInside = barLength > (textWidth + padding * 2);
 
+        // Si el texto es de nivel 0 y cabe dentro de la barra, va en negro; si no, en blanco
+        const textColor = (d.nivel === 0 && fitsInside) ? '#000000' : '#ffffff';
+
         const angleDeg = (normalizedAngle * 180 / Math.PI) - 90;
 
         let radiusPos;
@@ -519,7 +558,7 @@
           .attr('transform', `translate(${x}, ${y}) rotate(${finalRotation})`)
           .attr('text-anchor', textAnchor)
           .attr('dominant-baseline', 'central')
-          .attr('fill', '#ffffff')
+          .attr('fill', textColor)
           .attr('font-family', "'AbelCustom', sans-serif")
           .attr('font-size', `${fontSize}px`)
           .attr('letter-spacing', '0.3px')
@@ -527,9 +566,9 @@
       });
     }
 
-    // Lee columnas 2 (índice 1 = Nivel), 3 (índice 2 = Nombre) y 4 (índice 3 = Puntuación)
-    // hasta encontrar una fila sin nombre
-    function parseWorkbookColumns234(arrayBuffer) {
+    // Lee siempre las tres primeras columnas (índice 0 = Nivel, índice 1 = Nombre, índice 2 = Puntuación)
+    // hasta encontrar una fila sin nombre (segunda columna vacía)
+    function parseWorkbookFirstThreeCols(arrayBuffer) {
       const data = new Uint8Array(arrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheetName = workbook.SheetNames[0];
@@ -541,19 +580,19 @@
       const parsed = [];
 
       const firstRow = rows[0] || [];
+      const col1First = String(firstRow[0] ?? '').trim().toLowerCase();
       const col2First = String(firstRow[1] ?? '').trim().toLowerCase();
-      const col3First = String(firstRow[2] ?? '').trim().toLowerCase();
-      const startRowIndex = (col2First === 'nivel' || col3First === 'nombre') ? 1 : 0;
+      const startRowIndex = (col1First === 'nivel' || col2First === 'nombre') ? 1 : 0;
 
       for (let r = startRowIndex; r < rows.length; r++) {
         const row = rows[r] || [];
-        const rawNivel = row[1];
-        const rawNombre = row[2];
-        const rawPuntuacion = row[3];
+        const rawNivel = row[0];
+        const rawNombre = row[1];
+        const rawPuntuacion = row[2];
 
         const nombre = String(rawNombre ?? '').trim();
 
-        // Detener al encontrar una fila sin nombre
+        // Parar en cuanto no haya nombre en la segunda columna
         if (!nombre) {
           break;
         }
@@ -574,13 +613,15 @@
       return parsed;
     }
 
-    async function fetchCloudTable() {
-      statusMsg.textContent = `Importando tabla desde ${CLOUD_SHARE_URL}...`;
+    async function fetchTableFromUrl(targetUrl, sourceLabel = 'URL') {
+      const cleanUrl = String(targetUrl || '').trim();
+      if (!cleanUrl) return;
 
-      const candidateUrls = [
-        CLOUD_SHARE_URL.endsWith('/download') ? CLOUD_SHARE_URL : `${CLOUD_SHARE_URL}/download`,
-        CLOUD_SHARE_URL
-      ];
+      statusMsg.textContent = `Importando tabla desde ${sourceLabel}...`;
+
+      const candidateUrls = cleanUrl.includes('micloud.movistar.es/share/')
+        ? [cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`, cleanUrl]
+        : [cleanUrl];
 
       for (const url of candidateUrls) {
         try {
@@ -594,20 +635,56 @@
             continue;
           }
 
-          const rows = parseWorkbookColumns234(buffer);
+          const rows = parseWorkbookFirstThreeCols(buffer);
           if (rows.length > 0) {
-            statusMsg.textContent = `Tabla importada desde MiCloud (${rows.length} registros).`;
+            statusMsg.textContent = `Tabla importada desde ${sourceLabel} (${rows.length} registros).`;
             renderSolarChart(rows);
             return;
           }
         } catch (err) {
-          // Continuar al siguiente candidato o fallback
+          // Continuar al siguiente candidato o respaldo
         }
       }
 
-      statusMsg.textContent = 'No se pudo descargar el Excel directamente desde MiCloud (restricción de red/CORS). Mostrando datos de muestra.';
+      statusMsg.textContent = `No se pudo leer la tabla desde ${sourceLabel} (restricción de red/CORS o enlace no directo). Mostrando datos de muestra.`;
       renderSolarChart(SAMPLE_DATA);
     }
+
+    // Cargar tabla desde archivo local
+    document.getElementById('load-file-btn').addEventListener('click', () => {
+      tableFileInput.value = '';
+      tableFileInput.click();
+    });
+
+    tableFileInput.addEventListener('change', function(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const rows = parseWorkbookFirstThreeCols(evt.target.result);
+          if (rows.length > 0) {
+            statusMsg.textContent = `Archivo "${file.name}" cargado (${rows.length} registros).`;
+            renderSolarChart(rows);
+          } else {
+            statusMsg.textContent = `No se encontraron datos válidos en las 3 primeras columnas de "${file.name}".`;
+          }
+        } catch (err) {
+          console.error(err);
+          statusMsg.textContent = `Error al leer el archivo "${file.name}".`;
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Cargar tabla desde URL introducida por el usuario
+    document.getElementById('load-url-btn').addEventListener('click', () => {
+      const urlInput = window.prompt('Introduce la URL del archivo Excel o CSV:', DEFAULT_TABLE_URL);
+      if (urlInput !== null && urlInput.trim() !== '') {
+        document.fonts.ready.then(() => fetchTableFromUrl(urlInput.trim(), 'URL'));
+      }
+    });
 
     async function getEmbeddedFontCss() {
       try {
@@ -633,10 +710,6 @@
         return '';
       }
     }
-
-    document.getElementById('reload-cloud-btn').addEventListener('click', () => {
-      document.fonts.ready.then(() => fetchCloudTable());
-    });
 
     document.getElementById('download-svg-btn').addEventListener('click', async function() {
       const btn = this;
@@ -669,7 +742,7 @@
         canvas.height = 2000;
         const ctx = canvas.getContext('2d');
 
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = SOLID_BACKGROUNDS[currentBgMode] || '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         const drawSvgOnCanvas = () => {
@@ -694,12 +767,12 @@
           img.src = url;
         };
 
-        if (currentBgMode === 'black') {
+        if (SOLID_BACKGROUNDS[currentBgMode]) {
           drawSvgOnCanvas();
         } else {
           const bgSource = (currentBgMode === 'custom' && currentBgDataUrl)
             ? currentBgDataUrl
-            : DEFAULT_BG_URL;
+            : CME_BG_URL;
 
           const bgImg = new Image();
           if (!bgSource.startsWith('data:')) {
@@ -722,8 +795,8 @@
     });
 
     document.fonts.ready.then(() => {
-      applyBackground('solar');
-      fetchCloudTable();
+      applyBackground('cme');
+      fetchTableFromUrl(DEFAULT_TABLE_URL, 'MiCloud');
     });
   </script>
 </body>
