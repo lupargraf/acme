@@ -37,7 +37,7 @@
 
     header {
       width: 100%;
-      max-width: 1280px;
+      max-width: 1240px;
       padding: 20px 24px 10px;
       display: flex;
       flex-wrap: wrap;
@@ -209,7 +209,6 @@
           <option value="maroon">granate</option>
           <option value="coffee">café</option>
           <option value="cme" selected>Fondo CME</option>
-          <option value="custom">Subir imagen...</option>
         </select>
         <button type="button" id="upload-bg-btn" class="secondary-btn" title="Elegir una imagen de fondo desde el equipo">Subir imagen</button>
         <input type="file" id="bg-file-input" class="sr-file-input" accept="image/*" />
@@ -218,7 +217,6 @@
       <button type="button" id="load-file-btn" class="secondary-btn" title="Cargar tabla desde archivo Excel o CSV">Cargar archivo</button>
       <input type="file" id="table-file-input" class="sr-file-input" accept=".xlsx, .xls, .csv" />
 
-      <button type="button" id="load-url-btn" class="secondary-btn" title="Cargar tabla desde una URL">Cargar URL</button>
       <button type="button" id="download-svg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad">Descargar PNG</button>
     </div>
   </header>
@@ -231,7 +229,7 @@
     <div class="legend-item"><span class="legend-color" style="background:#BE1622;"></span> Nivel 4</div>
   </div>
 
-  <div id="status-msg">Importando tabla desde MiCloud Movistar...</div>
+  <div id="status-msg">Mostrando datos de ejemplo. Usa "Cargar archivo" para importar tu tabla.</div>
 
   <div id="chart-wrapper">
     <svg id="solar-chart" viewBox="0 0 1080 1000" preserveAspectRatio="xMidYMid meet"></svg>
@@ -259,38 +257,32 @@
 
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
-    const DEFAULT_TABLE_URL = 'https://micloud.movistar.es/share/NE4SFGSGUMRGDGIY';
 
     let currentBgMode = 'cme';
     let currentBgDataUrl = null;
-    let previousBgMode = 'cme';
 
     const SAMPLE_DATA = [
       { nivel: 0, nombre: 'Chema Martínez Sanz', puntuacion: 74 },
       { nivel: 0, nombre: 'Luis Martínez Sanz', puntuacion: 74 },
       { nivel: 1, nombre: 'Alejandro Capilla Jiménez', puntuacion: 50 },
-      { nivel: 1, nombre: 'Alejandro Velasco', puntuacion: 23 },
-      { nivel: 1, nombre: 'César Milena', puntuacion: 182 },
-      { nivel: 1, nombre: 'Curro Jiménez Jiménez', puntuacion: 50 },
       { nivel: 1, nombre: 'Edu Pons Rivero', puntuacion: 261 },
+      { nivel: 1, nombre: 'Martín Molina Gámez-Leyva', puntuacion: 363 },
+      { nivel: 1, nombre: 'Pablo Sánchez Guardiola', puntuacion: 134 },
       { nivel: 2, nombre: 'Adrián Fernández Hernando', puntuacion: 241 },
       { nivel: 2, nombre: 'Alberto Sánchez Martí', puntuacion: 182 },
-      { nivel: 2, nombre: 'Álvaro Menéndez Gutiérrez', puntuacion: 50 },
-      { nivel: 2, nombre: 'Ángel Cerezo Gámez', puntuacion: 70 },
-      { nivel: 2, nombre: 'Fernando Arredondo Camacho', puntuacion: 223 },
-      { nivel: 2, nombre: 'Fernando Fernández Joya', puntuacion: 50 },
-      { nivel: 3, nombre: 'Alberto Garófano Outón', puntuacion: 193 },
+      { nivel: 2, nombre: 'Gonzalo Pérez Torres', puntuacion: 198 },
+      { nivel: 2, nombre: 'Jaime Pinto Becerril', puntuacion: 221 },
+      { nivel: 2, nombre: 'Pablo del Árbol Morillas', puntuacion: 248 },
+      { nivel: 2, nombre: 'Pedro Carvajal Fernández', puntuacion: 235 },
       { nivel: 3, nombre: 'Álvaro González de Santa Ana', puntuacion: 341 },
-      { nivel: 3, nombre: 'Álvaro Rodríguez Aguado', puntuacion: 70 },
-      { nivel: 3, nombre: 'Anatole Esipov', puntuacion: 50 },
       { nivel: 3, nombre: 'Ángel Ruiz Martínez', puntuacion: 229 },
-      { nivel: 3, nombre: 'Antonio Escudero de Paz', puntuacion: 50 },
-      { nivel: 3, nombre: 'Carlos de Santa Ana Calvo', puntuacion: 70 },
-      { nivel: 3, nombre: 'Enrique Escudero de Paz', puntuacion: 50 },
+      { nivel: 3, nombre: 'Hadrian Xia', puntuacion: 243 },
+      { nivel: 3, nombre: 'Santiago Molina Gámez-Leyva', puntuacion: 356 },
+      { nivel: 3, nombre: 'Sergio Fortis Soriano', puntuacion: 115 },
       { nivel: 4, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
-      { nivel: 4, nombre: 'David Hurley', puntuacion: 15 },
       { nivel: 4, nombre: 'Agustín González Vallone', puntuacion: 418 },
-      { nivel: 4, nombre: 'Alfonso Sánchez Vega', puntuacion: 358 },
+      { nivel: 4, nombre: 'David Sánchez Guardiola', puntuacion: 374 },
+      { nivel: 4, nombre: 'Lorenzo Román Callejón', puntuacion: 326 }
     ];
 
     const svg = d3.select('#solar-chart');
@@ -305,66 +297,42 @@
     function applyBackground(mode, customDataUrl = null) {
       if (SOLID_BACKGROUNDS[mode]) {
         currentBgMode = mode;
-        previousBgMode = mode;
         currentBgDataUrl = null;
         chartWrapper.style.backgroundColor = SOLID_BACKGROUNDS[mode];
         chartWrapper.style.backgroundImage = 'none';
+        chartWrapper.style.backgroundSize = '100% 100%';
       } else if (mode === 'custom' && customDataUrl) {
         currentBgMode = 'custom';
-        previousBgMode = 'custom';
         currentBgDataUrl = customDataUrl;
         chartWrapper.style.backgroundColor = '#000000';
         chartWrapper.style.backgroundImage = `url("${customDataUrl}")`;
+        // Conserva la proporción original de la imagen subida sin estirarla
+        chartWrapper.style.backgroundSize = 'contain';
       } else {
         currentBgMode = 'cme';
-        previousBgMode = 'cme';
         currentBgDataUrl = null;
         chartWrapper.style.backgroundColor = '#000000';
         chartWrapper.style.backgroundImage = `url("${CME_BG_URL}")`;
+        chartWrapper.style.backgroundSize = '100% 100%';
       }
-    }
-
-    function openCustomBackgroundPicker() {
-      bgFileInput.value = '';
-      if (typeof bgFileInput.showPicker === 'function') {
-        try {
-          bgFileInput.showPicker();
-          return;
-        } catch (err) {
-          // Fallback a click() si showPicker no está permitido por el navegador
-        }
-      }
-      bgFileInput.click();
     }
 
     bgSelect.addEventListener('change', function() {
-      const val = this.value;
-      if (val === 'custom') {
-        if (currentBgDataUrl) {
-          applyBackground('custom', currentBgDataUrl);
-        }
-        setTimeout(openCustomBackgroundPicker, 0);
-      } else {
-        applyBackground(val);
-      }
+      applyBackground(this.value);
     });
 
     uploadBgBtn.addEventListener('click', function() {
-      bgSelect.value = 'custom';
-      openCustomBackgroundPicker();
+      bgFileInput.value = '';
+      bgFileInput.click();
     });
 
     bgFileInput.addEventListener('change', function(e) {
       const file = e.target.files && e.target.files[0];
-      if (!file) {
-        bgSelect.value = currentBgMode === 'custom' && currentBgDataUrl ? 'custom' : previousBgMode;
-        return;
-      }
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = function(evt) {
         applyBackground('custom', evt.target.result);
-        bgSelect.value = 'custom';
-        statusMsg.textContent = `Fondo personalizado "${file.name}" aplicado.`;
+        statusMsg.textContent = `Fondo personalizado "${file.name}" aplicado conservando su proporción.`;
       };
       reader.readAsDataURL(file);
     });
@@ -557,61 +525,6 @@
       return parsed;
     }
 
-    function looksLikeHtml(buffer) {
-      const sample = new TextDecoder('utf-8', { fatal: false }).decode(buffer.slice(0, 512)).trim().toLowerCase();
-      return sample.startsWith('<!doctype html') || sample.startsWith('<html') || sample.includes('<body');
-    }
-
-    async function fetchTableFromUrl(targetUrl, sourceLabel = 'URL') {
-      const cleanUrl = String(targetUrl || '').trim();
-      if (!cleanUrl) return;
-
-      statusMsg.textContent = `Importando tabla desde ${sourceLabel}...`;
-
-      const baseCandidates = cleanUrl.includes('micloud.movistar.es/share/')
-        ? [cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`, cleanUrl]
-        : [cleanUrl];
-
-      const candidates = [];
-      for (const u of baseCandidates) {
-        candidates.push(u);
-        if (/^https?:\/\//i.test(u)) {
-          candidates.push(`https://corsproxy.io/?${encodeURIComponent(u)}`);
-        }
-      }
-
-      let receivedHtml = false;
-
-      for (const url of candidates) {
-        try {
-          const response = await fetch(url, { mode: 'cors' });
-          if (!response.ok) continue;
-
-          const contentType = (response.headers.get('content-type') || '').toLowerCase();
-          const buffer = await response.arrayBuffer();
-
-          if (contentType.includes('text/html') || looksLikeHtml(buffer)) {
-            receivedHtml = true;
-            continue;
-          }
-
-          const rows = parseWorkbookFirstThreeCols(buffer);
-          if (rows.length > 0) {
-            statusMsg.textContent = `Tabla importada desde ${sourceLabel} (${rows.length} registros).`;
-            renderSolarChart(rows);
-            return;
-          }
-        } catch (err) {
-          // Probar siguiente candidato
-        }
-      }
-
-      statusMsg.textContent = receivedHtml
-        ? `La URL devolvió una página web (HTML) y no un archivo directo. Usa "Cargar archivo" o un enlace directo al Excel/CSV. Mostrando datos de muestra.`
-        : `No se pudo leer la tabla desde ${sourceLabel} (restricción de red/CORS o enlace no directo). Mostrando datos de muestra.`;
-      renderSolarChart(SAMPLE_DATA);
-    }
-
     document.getElementById('load-file-btn').addEventListener('click', () => {
       tableFileInput.value = '';
       tableFileInput.click();
@@ -639,13 +552,6 @@
       reader.readAsArrayBuffer(file);
     });
 
-    document.getElementById('load-url-btn').addEventListener('click', () => {
-      const urlInput = window.prompt('Introduce la URL directa del archivo Excel o CSV:', DEFAULT_TABLE_URL);
-      if (urlInput !== null && urlInput.trim() !== '') {
-        document.fonts.ready.then(() => fetchTableFromUrl(urlInput.trim(), 'URL'));
-      }
-    });
-
     async function getEmbeddedFontCss() {
       try {
         const response = await fetch(FONT_URL);
@@ -669,6 +575,21 @@
       } catch (e) {
         return '';
       }
+    }
+
+    // Dibuja la imagen manteniendo su relación de aspecto original (equivalente a background-size: contain)
+    function drawContainImage(ctx, img, canvasW, canvasH) {
+      const imgW = img.naturalWidth || img.width;
+      const imgH = img.naturalHeight || img.height;
+      if (!imgW || !imgH) return;
+
+      const scale = Math.min(canvasW / imgW, canvasH / imgH);
+      const drawW = imgW * scale;
+      const drawH = imgH * scale;
+      const offsetX = (canvasW - drawW) / 2;
+      const offsetY = (canvasH - drawH) / 2;
+
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
     }
 
     document.getElementById('download-svg-btn').addEventListener('click', async function() {
@@ -729,15 +650,19 @@
 
         if (SOLID_BACKGROUNDS[currentBgMode]) {
           drawSvgOnCanvas();
-        } else {
-          const bgSource = (currentBgMode === 'custom' && currentBgDataUrl)
-            ? currentBgDataUrl
-            : CME_BG_URL;
-
+        } else if (currentBgMode === 'custom' && currentBgDataUrl) {
           const bgImg = new Image();
-          if (!bgSource.startsWith('data:')) {
-            bgImg.crossOrigin = 'anonymous';
-          }
+          bgImg.onload = function() {
+            drawContainImage(ctx, bgImg, canvas.width, canvas.height);
+            drawSvgOnCanvas();
+          };
+          bgImg.onerror = function() {
+            drawSvgOnCanvas();
+          };
+          bgImg.src = currentBgDataUrl;
+        } else {
+          const bgImg = new Image();
+          bgImg.crossOrigin = 'anonymous';
           bgImg.onload = function() {
             ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
             drawSvgOnCanvas();
@@ -745,7 +670,7 @@
           bgImg.onerror = function() {
             drawSvgOnCanvas();
           };
-          bgImg.src = bgSource;
+          bgImg.src = CME_BG_URL;
         }
       } catch (err) {
         console.error(err);
@@ -756,7 +681,7 @@
 
     document.fonts.ready.then(() => {
       applyBackground('cme');
-      fetchTableFromUrl(DEFAULT_TABLE_URL, 'MiCloud');
+      renderSolarChart(SAMPLE_DATA);
     });
   </script>
 </body>
