@@ -224,7 +224,7 @@
       <button type="button" id="load-file-btn" class="secondary-btn" title="Cargar tabla desde archivo Excel o CSV">Cargar tabla</button>
       <input type="file" id="table-file-input" class="sr-file-input" accept=".xlsx, .xls, .csv" />
 
-      <button type="button" id="download-svg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad">Descargar PNG</button>
+      <button type="button" id="download-jpg-btn" class="secondary-btn" title="Descargar gráfico en alta calidad (3240 x 3000 px JPG)">Descargar JPG</button>
     </div>
   </header>
 
@@ -264,6 +264,10 @@
 
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
+
+    // Resolución de exportación: lado menor 3000 px y relación 1.08 x 1 -> 3240 x 3000 px
+    const EXPORT_HEIGHT = 3000;
+    const EXPORT_WIDTH = Math.round(EXPORT_HEIGHT * 1.08); // 3240
 
     let currentBgMode = 'cme';
     let currentBgDataUrl = null;
@@ -392,8 +396,6 @@
       const stepAngle = totalAngle / n;
       const barAngle = stepAngle / 1.1;
 
-      // Esta medida de longitud media + líneas conectoras + mayor tamaño de texto
-      // se aplica únicamente cuando hay 100 o más nombres.
       const useDenseLayout = n >= 100;
       const meanBarLength = d3.mean(data, d => rScale(d.puntuacion) - innerRadius) || 0;
       const meanOuterRadius = innerRadius + meanBarLength;
@@ -460,7 +462,6 @@
         const textWidth = measureSvgTextWidth(labelText, fontSize);
         const fitsInside = !isShorterThanMean && (barLength > (textWidth + padding * 2));
 
-        // Si el texto es de nivel 0 y cabe dentro de la barra, va en negro; si no, en blanco
         const textColor = (d.nivel === 0 && fitsInside) ? '#000000' : '#ffffff';
 
         const angleDeg = (normalizedAngle * 180 / Math.PI) - 90;
@@ -643,10 +644,10 @@
       ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
     }
 
-    document.getElementById('download-svg-btn').addEventListener('click', async function() {
+    document.getElementById('download-jpg-btn').addEventListener('click', async function() {
       const btn = this;
       const originalText = btn.textContent;
-      btn.textContent = 'Generando PNG...';
+      btn.textContent = 'Generando JPG...';
       btn.disabled = true;
 
       try {
@@ -654,8 +655,8 @@
         const clonedSvg = svgElement.cloneNode(true);
 
         clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clonedSvg.setAttribute('width', '2160');
-        clonedSvg.setAttribute('height', '2000');
+        clonedSvg.setAttribute('width', String(EXPORT_WIDTH));
+        clonedSvg.setAttribute('height', String(EXPORT_HEIGHT));
 
         const fontCss = await getEmbeddedFontCss();
         if (fontCss) {
@@ -670,8 +671,8 @@
         const svgString = serializer.serializeToString(clonedSvg);
 
         const canvas = document.createElement('canvas');
-        canvas.width = 2160;
-        canvas.height = 2000;
+        canvas.width = EXPORT_WIDTH;
+        canvas.height = EXPORT_HEIGHT;
         const ctx = canvas.getContext('2d');
 
         ctx.fillStyle = SOLID_BACKGROUNDS[currentBgMode] || '#000000';
@@ -685,8 +686,8 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             URL.revokeObjectURL(url);
             const link = document.createElement('a');
-            link.download = 'grafica-solar.png';
-            link.href = canvas.toDataURL('image/png');
+            link.download = 'grafica-solar.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
             link.click();
             btn.textContent = originalText;
             btn.disabled = false;
