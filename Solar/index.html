@@ -10,7 +10,6 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
 
   <style>
-    /* Carga de tipografía personalizada */
     @font-face {
       font-family: 'AbelCustom';
       src: url('https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf') format('truetype');
@@ -36,7 +35,6 @@
       overflow-x: hidden;
     }
 
-    /* Cabecera y controles */
     header {
       width: 100%;
       max-width: 1200px;
@@ -64,7 +62,6 @@
       flex-wrap: wrap;
     }
 
-    /* Botón principal de subida */
     .upload-btn {
       background-color: transparent;
       color: #ffffff;
@@ -103,7 +100,6 @@
       display: none;
     }
 
-    /* Leyenda de niveles */
     .legend {
       display: flex;
       gap: 16px;
@@ -128,16 +124,16 @@
       border-radius: 2px;
     }
 
-    /* Contenedor principal de la gráfica con fondo */
+    /* Relación de aspecto exacta 1.08 : 1 */
     #chart-wrapper {
       position: relative;
       width: 100%;
-      max-width: 1050px;
-      aspect-ratio: 1 / 1;
+      max-width: 1134px;
+      aspect-ratio: 1.08 / 1;
       margin: 10px auto 30px;
       background-color: #000000;
       background-image: url('https://lupargraf.github.io/acme/Solar/fondosolar.jpg');
-      background-size: cover;
+      background-size: 100% 100%;
       background-position: center;
       background-repeat: no-repeat;
       display: flex;
@@ -159,7 +155,6 @@
       letter-spacing: 0.3px;
     }
 
-    /* Tooltip interactivo */
     #tooltip {
       position: fixed;
       pointer-events: none;
@@ -204,13 +199,13 @@
   <div id="status-msg">Mostrando datos de ejemplo. Sube un Excel con columnas: Nivel, Nombre, Puntuación.</div>
 
   <div id="chart-wrapper">
-    <svg id="solar-chart" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
+    <!-- viewBox 1080x1000 mantiene exactamente la proporción 1.08 x 1 -->
+    <svg id="solar-chart" viewBox="0 0 1080 1000" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
   <div id="tooltip"></div>
 
   <script>
-    // Mapa de colores por nivel según especificaciones
     const LEVEL_COLORS = {
       0: '#FFED00',
       1: '#F39200',
@@ -219,7 +214,9 @@
       4: '#BE1622'
     };
 
-    // Datos de demostración iniciales para previsualizar el diseño
+    const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
+    const BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
+
     const SAMPLE_DATA = [
       { nivel: 0, nombre: 'Rodrigo Fajardo Jiménez', puntuacion: 50 },
       { nivel: 0, nombre: 'Chema Martínez Sanz', puntuacion: 74 },
@@ -324,11 +321,12 @@
     const tooltip = d3.select('#tooltip');
     const statusMsg = document.getElementById('status-msg');
 
-    // Función para medir con exactitud el ancho en píxeles de un texto SVG
     function measureSvgTextWidth(text, fontSize) {
       const tempText = svg.append('text')
         .attr('class', 'bar-label')
-        .style('font-size', `${fontSize}px`)
+        .attr('font-family', "'AbelCustom', sans-serif")
+        .attr('font-size', `${fontSize}px`)
+        .attr('letter-spacing', '0.3px')
         .style('opacity', 0)
         .text(text);
       const width = tempText.node().getComputedTextLength();
@@ -344,23 +342,21 @@
         return;
       }
 
-      // Ordenar por Nivel (0 a 4) manteniendo el orden interno de aparición
       const data = rawData
         .map((d, idx) => ({ ...d, originalIndex: idx }))
         .sort((a, b) => a.nivel - b.nivel || a.originalIndex - b.originalIndex);
 
-      const width = 1000;
+      // Dimensiones con proporción exacta 1.08 x 1
+      const width = 1080;
       const height = 1000;
       const cx = width / 2;
       const cy = height / 2;
 
-      // Radios del gráfico radial
       const innerRadius = 56;
       const maxOuterRadius = 475;
 
       const maxScore = d3.max(data, d => d.puntuacion) || 100;
 
-      // Escala radial para longitud de barras
       const rScale = d3.scaleLinear()
         .domain([0, maxScore])
         .range([innerRadius, maxOuterRadius]);
@@ -368,19 +364,14 @@
       const n = data.length;
       const totalAngle = 2 * Math.PI;
       const stepAngle = totalAngle / n;
-
-      // Espacio del 10% de la anchura de la barra entre cada una:
-      // barAngle + 0.10 * barAngle = stepAngle => barAngle = stepAngle / 1.1
       const barAngle = stepAngle / 1.1;
 
-      // Cálculo dinámico del tamaño de fuente según la anchura angular en el radio interior
       const innerArcWidth = innerRadius * barAngle;
       const fontSize = Math.max(6.5, Math.min(12.5, innerArcWidth * 1.45));
 
       const g = svg.append('g')
         .attr('transform', `translate(${cx}, ${cy})`);
 
-      // Círculo central negro para limpiar el origen de las barras
       g.append('circle')
         .attr('r', innerRadius - 1)
         .attr('fill', '#000000');
@@ -391,7 +382,6 @@
         .startAngle((d, i) => i * stepAngle)
         .endAngle((d, i) => i * stepAngle + barAngle);
 
-      // Dibujo de barras
       g.selectAll('.bar')
         .data(data)
         .enter()
@@ -416,31 +406,22 @@
           tooltip.style('opacity', 0);
         });
 
-      // Posicionamiento y orientación de textos (Nombre y Puntuación)
       data.forEach((d, i) => {
-        // Ángulo medio de la barra en sistema D3 (0 = arriba/12 en punto, sentido horario)
         const midAngle = i * stepAngle + barAngle / 2;
         const barOuterR = rScale(d.puntuacion);
         const barLength = barOuterR - innerRadius;
 
-        // Determinar si la barra está en la mitad derecha [0, PI) o izquierda [PI, 2*PI)
         const normalizedAngle = ((midAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
         const isRightHalf = normalizedAngle < Math.PI;
 
-        // Formato del texto:
-        // Mitad derecha: Nombre Puntuación (de centro hacia afuera)
-        // Mitad izquierda: Puntuación Nombre (de afuera hacia adentro)
         const labelText = isRightHalf
           ? `${d.nombre} ${d.puntuacion}`
           : `${d.puntuacion} ${d.nombre}`;
 
         const textWidth = measureSvgTextWidth(labelText, fontSize);
         const padding = 5;
-
-        // Condición: ¿Longitud de la barra mayor que longitud del texto?
         const fitsInside = barLength > (textWidth + padding * 2);
 
-        // Conversión de ángulo D3 (0 arriba) a ángulo estándar SVG (0 derecha) en grados
         const angleDeg = (normalizedAngle * 180 / Math.PI) - 90;
 
         let radiusPos;
@@ -448,45 +429,42 @@
         let finalRotation;
 
         if (isRightHalf) {
-          // Mitad derecha: lectura de centro hacia afuera
           finalRotation = angleDeg;
           if (fitsInside) {
-            // Dentro de la barra, justificado casi al borde exterior
             radiusPos = barOuterR - padding;
             textAnchor = 'end';
           } else {
-            // A continuación de la barra hacia afuera
             radiusPos = barOuterR + padding;
             textAnchor = 'start';
           }
         } else {
-          // Mitad izquierda: rotado 180° para leerse de afuera hacia adentro
           finalRotation = angleDeg + 180;
           if (fitsInside) {
-            // Dentro de la barra, justificado casi al borde exterior
             radiusPos = barOuterR - padding;
             textAnchor = 'start';
           } else {
-            // A continuación de la barra hacia afuera
             radiusPos = barOuterR + padding;
             textAnchor = 'end';
           }
         }
 
-        // Coordenadas cartesianas del punto de anclaje del texto
         const x = Math.sin(normalizedAngle) * radiusPos;
         const y = -Math.cos(normalizedAngle) * radiusPos;
 
+        // Atributos explícitos en el SVG para garantizar que el PNG exportado los respete
         g.append('text')
           .attr('class', 'bar-label')
           .attr('transform', `translate(${x}, ${y}) rotate(${finalRotation})`)
           .attr('text-anchor', textAnchor)
-          .style('font-size', `${fontSize}px`)
+          .attr('dominant-baseline', 'central')
+          .attr('fill', '#ffffff')
+          .attr('font-family', "'AbelCustom', sans-serif")
+          .attr('font-size', `${fontSize}px`)
+          .attr('letter-spacing', '0.3px')
           .text(labelText);
       });
     }
 
-    // Normalización de nombres de columnas del Excel
     function normalizeKey(key) {
       return String(key || '')
         .trim()
@@ -495,7 +473,6 @@
         .replace(/[\u0300-\u036f]/g, '');
     }
 
-    // Lectura del archivo Excel mediante SheetJS
     document.getElementById('excel-input').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -529,7 +506,6 @@
               }
             });
 
-            // Respaldo posicional si las cabeceras tienen nombres distintos
             if ((nivelVal === null || isNaN(nivelVal)) && keys.length >= 3) {
               nivelVal = parseInt(row[keys[0]], 10);
               nombreVal = String(row[keys[1]]).trim();
@@ -560,48 +536,109 @@
       reader.readAsArrayBuffer(file);
     });
 
-    // Exportar visualización a PNG combinando el fondo y el SVG
-    document.getElementById('download-svg-btn').addEventListener('click', function() {
-      const svgElement = document.getElementById('solar-chart');
-      const serializer = new XMLSerializer();
-      const svgString = serializer.serializeToString(svgElement);
+    // Convierte la fuente externa a Base64 para incrustarla en el SVG exportado
+    async function getEmbeddedFontCss() {
+      try {
+        const response = await fetch(FONT_URL);
+        if (!response.ok) return '';
+        const blob = await response.blob();
+        return await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(`
+              @font-face {
+                font-family: 'AbelCustom';
+                src: url('${reader.result}') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+              }
+            `);
+          };
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        return '';
+      }
+    }
 
-      const canvas = document.createElement('canvas');
-      canvas.width = 2000;
-      canvas.height = 2000;
-      const ctx = canvas.getContext('2d');
+    // Exportación a PNG con relación exacta 1.08 x 1 (2160 x 2000 px) y fuente incrustada
+    document.getElementById('download-svg-btn').addEventListener('click', async function() {
+      const btn = this;
+      const originalText = btn.textContent;
+      btn.textContent = 'Generando PNG...';
+      btn.disabled = true;
 
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      try {
+        const svgElement = document.getElementById('solar-chart');
+        const clonedSvg = svgElement.cloneNode(true);
 
-      const bgImg = new Image();
-      bgImg.crossOrigin = 'anonymous';
-      bgImg.onload = function() {
-        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-        drawSvgOnCanvas();
-      };
-      bgImg.onerror = function() {
-        drawSvgOnCanvas();
-      };
-      bgImg.src = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
+        // Asegurar dimensiones y namespaces explícitos en el SVG clonado
+        clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clonedSvg.setAttribute('width', '2160');
+        clonedSvg.setAttribute('height', '2000');
 
-      function drawSvgOnCanvas() {
-        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-        const img = new Image();
-        img.onload = function() {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          URL.revokeObjectURL(url);
-          const link = document.createElement('a');
-          link.download = 'grafica-solar.png';
-          link.href = canvas.toDataURL('image/png');
-          link.click();
+        // Incrustar @font-face dentro del SVG para que el ancho y estilo del texto sean idénticos
+        const fontCss = await getEmbeddedFontCss();
+        if (fontCss) {
+          const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+          const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+          styleEl.textContent = fontCss;
+          defs.appendChild(styleEl);
+          clonedSvg.insertBefore(defs, clonedSvg.firstChild);
+        }
+
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(clonedSvg);
+
+        const canvas = document.createElement('canvas');
+        // Relación exacta ancho x alto = 1.08 x 1
+        canvas.width = 2160;
+        canvas.height = 2000;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const drawSvgOnCanvas = () => {
+          const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(svgBlob);
+          const img = new Image();
+          img.onload = function() {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            const link = document.createElement('a');
+            link.download = 'grafica-solar.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            btn.textContent = originalText;
+            btn.disabled = false;
+          };
+          img.onerror = function() {
+            URL.revokeObjectURL(url);
+            btn.textContent = originalText;
+            btn.disabled = false;
+          };
+          img.src = url;
         };
-        img.src = url;
+
+        const bgImg = new Image();
+        bgImg.crossOrigin = 'anonymous';
+        bgImg.onload = function() {
+          ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+          drawSvgOnCanvas();
+        };
+        bgImg.onerror = function() {
+          drawSvgOnCanvas();
+        };
+        bgImg.src = BG_URL;
+      } catch (err) {
+        console.error(err);
+        btn.textContent = originalText;
+        btn.disabled = false;
       }
     });
 
-    // Esperar a que cargue la fuente antes del primer renderizado para medir bien los textos
     document.fonts.ready.then(() => {
       renderSolarChart(SAMPLE_DATA);
     });
