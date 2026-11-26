@@ -60,7 +60,7 @@
     .controls {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
@@ -89,6 +89,20 @@
     select.bg-select:hover,
     select.bg-select:focus {
       border-color: #ffffff;
+    }
+
+    input[type="range"].radius-slider {
+      width: 110px;
+      accent-color: #ffffff;
+      cursor: pointer;
+    }
+
+    .radius-value {
+      min-width: 30px;
+      text-align: right;
+      font-size: 0.9rem;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
     }
 
     .secondary-btn {
@@ -150,7 +164,6 @@
       padding: 2px 12px 4px;
     }
 
-    /* Zona de visualización que aprovecha al máximo el espacio disponible de la ventana */
     #stage {
       flex: 1 1 auto;
       width: 100%;
@@ -161,7 +174,6 @@
       min-height: 0;
     }
 
-    /* Contenedor adaptable a la relación de aspecto activa (imagen o gráfica) */
     #chart-wrapper {
       position: relative;
       width: auto;
@@ -212,7 +224,6 @@
       z-index: 100;
     }
   </style>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 <body>
 
@@ -234,6 +245,12 @@
         <input type="file" id="bg-file-input" class="sr-file-input" accept="image/*" />
       </div>
 
+      <div class="control-group">
+        <label for="inner-radius-slider" class="control-label">Radio centro:</label>
+        <input type="range" id="inner-radius-slider" class="radius-slider" min="20" max="220" step="1" value="52" aria-label="Radio del círculo central" />
+        <span id="inner-radius-val" class="radius-value">52</span>
+      </div>
+
       <button type="button" id="load-file-btn" class="secondary-btn" title="Cargar tabla desde archivo Excel o CSV">Cargar tabla</button>
       <input type="file" id="table-file-input" class="sr-file-input" accept=".xlsx, .xls, .csv" />
 
@@ -253,7 +270,6 @@
 
   <div id="stage">
     <div id="chart-wrapper">
-      <!-- La gráfica radial ocupa proporcionalmente el máximo espacio posible sin salirse -->
       <svg id="solar-chart" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
   </div>
@@ -281,14 +297,17 @@
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
 
-    // Relación de aspecto de la propia gráfica (ancho / alto)
-    const CHART_ASPECT_RATIO = 1;
+    // Porcentaje del eje limitante (ancho o alto de la imagen) que ocupará la gráfica (0.95 = 5% de margen)
+    const CHART_MARGIN_FACTOR = 0.95;
+
+    // Relación de aspecto de respaldo si no hay imagen con dimensiones válidas
+    const DEFAULT_ASPECT_RATIO = 1;
 
     let currentBgMode = 'cme';
     let currentBgDataUrl = null;
-    let currentImageAspectRatio = null; // ancho / alto de la imagen de fondo activa
+    let currentImageDims = null; // { width, height } de la imagen activa
+    let currentInnerRadius = 52;
 
-    // 2 del nivel 0, 4 del nivel 1, 6 del nivel 2, 5 del nivel 3 y 4 del nivel 4
     const SAMPLE_DATA = [
       { nivel: 0, nombre: 'Atlético de Madrid', puntuacion: 153 },
       { nivel: 0, nombre: 'Real Betis Balompié', puntuacion: 74 },
@@ -313,6 +332,8 @@
       { nivel: 4, nombre: 'Asociación Cultural y Deportiva Alayos', puntuacion: 326 }
     ];
 
+    let activeData = SAMPLE_DATA.slice();
+
     const svg = d3.select('#solar-chart');
     const tooltip = d3.select('#tooltip');
     const stage = document.getElementById('stage');
@@ -322,9 +343,19 @@
     const uploadBgBtn = document.getElementById('upload-bg-btn');
     const bgFileInput = document.getElementById('bg-file-input');
     const tableFileInput = document.getElementById('table-file-input');
+    const innerRadiusSlider = document.getElementById('inner-radius-slider');
+    const innerRadiusVal = document.getElementById('inner-radius-val');
+
+    function getCanvasAspectRatio() {
+      const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
+      if (hasSolidBg || !currentImageDims || !currentImageDims.width || !currentImageDims.height) {
+        return DEFAULT_ASPECT_RATIO;
+      }
+      return currentImageDims.width / currentImageDims.height;
+    }
 
     function fitChartWrapper(ratio) {
-      const safeRatio = (ratio && isFinite(ratio) && ratio > 0) ? ratio : CHART_ASPECT_RATIO;
+      const safeRatio = (ratio && isFinite(ratio) && ratio > 0) ? ratio : DEFAULT_ASPECT_RATIO;
       chartWrapper.style.aspectRatio = `${safeRatio} / 1`;
 
       const stageRect = stage.getBoundingClientRect();
@@ -345,20 +376,13 @@
       chartWrapper.style.height = `${boxH.toFixed(2)}px`;
     }
 
-    function getActiveAspectRatio() {
-      const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
-      return hasSolidBg
-        ? CHART_ASPECT_RATIO
-        : (currentImageAspectRatio || CHART_ASPECT_RATIO);
-    }
-
     const resizeObserver = new ResizeObserver(() => {
-      fitChartWrapper(getActiveAspectRatio());
+      fitChartWrapper(getCanvasAspectRatio());
     });
     resizeObserver.observe(stage);
 
     window.addEventListener('resize', () => {
-      fitChartWrapper(getActiveAspectRatio());
+      fitChartWrapper(getCanvasAspectRatio());
     });
 
     function loadImageElement(src, useCors = false) {
@@ -377,10 +401,11 @@
       if (SOLID_BACKGROUNDS[mode]) {
         currentBgMode = mode;
         currentBgDataUrl = null;
-        currentImageAspectRatio = null;
+        currentImageDims = null;
         chartWrapper.style.backgroundColor = SOLID_BACKGROUNDS[mode];
         chartWrapper.style.backgroundImage = 'none';
-        fitChartWrapper(CHART_ASPECT_RATIO);
+        fitChartWrapper(DEFAULT_ASPECT_RATIO);
+        renderSolarChart(activeData);
       } else if (mode === 'custom' && customDataUrl) {
         currentBgMode = 'custom';
         currentBgDataUrl = customDataUrl;
@@ -390,11 +415,12 @@
           const img = await loadImageElement(customDataUrl, false);
           const w = img.naturalWidth || img.width;
           const h = img.naturalHeight || img.height;
-          currentImageAspectRatio = (w && h) ? (w / h) : CHART_ASPECT_RATIO;
+          currentImageDims = (w && h) ? { width: w, height: h } : null;
         } catch (e) {
-          currentImageAspectRatio = CHART_ASPECT_RATIO;
+          currentImageDims = null;
         }
-        fitChartWrapper(currentImageAspectRatio);
+        fitChartWrapper(getCanvasAspectRatio());
+        renderSolarChart(activeData);
       } else {
         currentBgMode = 'cme';
         currentBgDataUrl = null;
@@ -404,11 +430,12 @@
           const img = await loadImageElement(CME_BG_URL, true);
           const w = img.naturalWidth || img.width;
           const h = img.naturalHeight || img.height;
-          currentImageAspectRatio = (w && h) ? (w / h) : CHART_ASPECT_RATIO;
+          currentImageDims = (w && h) ? { width: w, height: h } : null;
         } catch (e) {
-          currentImageAspectRatio = CHART_ASPECT_RATIO;
+          currentImageDims = null;
         }
-        fitChartWrapper(currentImageAspectRatio);
+        fitChartWrapper(getCanvasAspectRatio());
+        renderSolarChart(activeData);
       }
     }
 
@@ -432,6 +459,12 @@
       reader.readAsDataURL(file);
     });
 
+    innerRadiusSlider.addEventListener('input', function() {
+      currentInnerRadius = Number(this.value) || 52;
+      innerRadiusVal.textContent = String(currentInnerRadius);
+      renderSolarChart(activeData);
+    });
+
     function measureSvgTextWidth(text, fontSize) {
       const tempText = svg.append('text')
         .attr('class', 'bar-label')
@@ -443,6 +476,50 @@
       const width = tempText.node().getComputedTextLength();
       tempText.remove();
       return width;
+    }
+
+    /**
+     * Ajusta el viewBox y/o transformación del SVG para que el grupo de la gráfica
+     * ocupe CHART_MARGIN_FACTOR del eje limitante (ancho o alto) del fondo activo.
+     */
+    function fitChartContentToBackground(g) {
+      const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
+      const imgDims = (!hasSolidBg && currentImageDims && currentImageDims.width && currentImageDims.height)
+        ? currentImageDims
+        : { width: 1000, height: 1000 };
+
+      const aspect = imgDims.width / imgDims.height;
+      // Usamos un espacio lógico de referencia de 1000 unidades en el eje menor
+      // y ajustamos el viewBox para que coincida exactamente con la relación de aspecto de la imagen.
+      const baseDim = 1000;
+      const vbWidth = aspect >= 1 ? baseDim * aspect : baseDim;
+      const vbHeight = aspect >= 1 ? baseDim : baseDim / aspect;
+      const vbCenterX = vbWidth / 2;
+      const vbCenterY = vbHeight / 2;
+
+      svg.attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`);
+
+      // Centrar provisionalmente en el nuevo viewBox para medir su caja real
+      g.attr('transform', `translate(${vbCenterX}, ${vbCenterY})`);
+
+      const bbox = g.node().getBBox();
+      if (!bbox || bbox.width <= 0 || bbox.height <= 0) {
+        return;
+      }
+
+      // Eje limitante del fondo: si la imagen es apaisada (aspect > 1), limita el alto; si es vertical, limita el ancho.
+      const limitingSize = Math.min(vbWidth, vbHeight) * CHART_MARGIN_FACTOR;
+      const currentMaxSpan = Math.max(bbox.width, bbox.height);
+      const scale = limitingSize / currentMaxSpan;
+
+      // Centro geométrico real del bounding box respecto al origen del grupo
+      const bboxCenterX = bbox.x + bbox.width / 2;
+      const bboxCenterY = bbox.y + bbox.height / 2;
+
+      const tx = vbCenterX - bboxCenterX * scale;
+      const ty = vbCenterY - bboxCenterY * scale;
+
+      g.attr('transform', `translate(${tx}, ${ty}) scale(${scale})`);
     }
 
     function renderSolarChart(rawData) {
@@ -457,13 +534,8 @@
         .map((d, idx) => ({ ...d, originalIndex: idx }))
         .sort((a, b) => (a.nivel - b.nivel) || (a.originalIndex - b.originalIndex));
 
-      const width = 1000;
-      const height = 1000;
-      const cx = width / 2;
-      const cy = height / 2;
-
-      const innerRadius = 52;
-      const maxOuterRadius = 490;
+      const innerRadius = Math.max(10, Math.min(260, currentInnerRadius));
+      const maxOuterRadius = Math.max(innerRadius + 120, 470);
 
       const maxScore = d3.max(data, d => d.puntuacion) || 100;
 
@@ -486,7 +558,7 @@
         : Math.max(6.5, Math.min(12.5, innerArcWidth * 1.45));
 
       const g = svg.append('g')
-        .attr('transform', `translate(${cx}, ${cy})`);
+        .attr('transform', 'translate(500, 500)');
 
       // Centro transparente: no se dibuja círculo negro central
 
@@ -610,6 +682,8 @@
           .attr('letter-spacing', '0.3px')
           .text(labelText);
       });
+
+      fitChartContentToBackground(g);
     }
 
     function parseWorkbookFirstThreeCols(arrayBuffer) {
@@ -670,8 +744,9 @@
         try {
           const rows = parseWorkbookFirstThreeCols(evt.target.result);
           if (rows.length > 0) {
+            activeData = rows;
             statusMsg.textContent = `Archivo "${file.name}" cargado (${rows.length} registros).`;
-            renderSolarChart(rows);
+            renderSolarChart(activeData);
           } else {
             statusMsg.textContent = `No se encontraron datos válidos en las 3 primeras columnas de "${file.name}".`;
           }
@@ -707,7 +782,7 @@
 
       try {
         const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
-        const targetAspect = getActiveAspectRatio();
+        const targetAspect = getCanvasAspectRatio();
 
         const baseHeight = 2000;
         const pdfHeight = baseHeight;
@@ -741,15 +816,11 @@
           }
         }
 
-        const chartSize = Math.min(pdfWidth, pdfHeight);
-        const chartX = (pdfWidth - chartSize) / 2;
-        const chartY = (pdfHeight - chartSize) / 2;
-
         const svgElement = document.getElementById('solar-chart');
         const clonedSvg = svgElement.cloneNode(true);
         clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clonedSvg.setAttribute('width', String(chartSize));
-        clonedSvg.setAttribute('height', String(chartSize));
+        clonedSvg.setAttribute('width', String(pdfWidth));
+        clonedSvg.setAttribute('height', String(pdfHeight));
 
         const fontDataUrl = await getEmbeddedFontDataUrl();
         if (fontDataUrl) {
@@ -762,10 +833,10 @@
         }
 
         await doc.svg(clonedSvg, {
-          x: chartX,
-          y: chartY,
-          width: chartSize,
-          height: chartSize
+          x: 0,
+          y: 0,
+          width: pdfWidth,
+          height: pdfHeight
         });
 
         doc.save('grafica-solar.pdf');
@@ -779,8 +850,7 @@
 
     document.fonts.ready.then(async () => {
       await applyBackground('cme');
-      renderSolarChart(SAMPLE_DATA);
-      requestAnimationFrame(() => fitChartWrapper(getActiveAspectRatio()));
+      requestAnimationFrame(() => fitChartWrapper(getCanvasAspectRatio()));
     });
   </script>
 </body>
