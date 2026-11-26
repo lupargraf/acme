@@ -300,7 +300,6 @@
     // Porcentaje del eje limitante (ancho o alto de la imagen) que ocupará la gráfica (0.95 = 5% de margen)
     const CHART_MARGIN_FACTOR = 0.95;
 
-    // Relación de aspecto de respaldo si no hay imagen con dimensiones válidas
     const DEFAULT_ASPECT_RATIO = 1;
 
     let currentBgMode = 'cme';
@@ -479,47 +478,35 @@
     }
 
     /**
-     * Ajusta el viewBox y/o transformación del SVG para que el grupo de la gráfica
-     * ocupe CHART_MARGIN_FACTOR del eje limitante (ancho o alto) del fondo activo.
+     * Escala y centra la gráfica dentro del viewBox correspondiente a la imagen de fondo,
+     * ocupando CHART_MARGIN_FACTOR del eje limitante (ancho si la imagen es vertical, alto si es apaisada).
      */
-    function fitChartContentToBackground(g) {
+    function fitChartContentToBackground(g, maxOuterRadius) {
       const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
       const imgDims = (!hasSolidBg && currentImageDims && currentImageDims.width && currentImageDims.height)
         ? currentImageDims
         : { width: 1000, height: 1000 };
 
       const aspect = imgDims.width / imgDims.height;
-      // Usamos un espacio lógico de referencia de 1000 unidades en el eje menor
-      // y ajustamos el viewBox para que coincida exactamente con la relación de aspecto de la imagen.
       const baseDim = 1000;
       const vbWidth = aspect >= 1 ? baseDim * aspect : baseDim;
       const vbHeight = aspect >= 1 ? baseDim : baseDim / aspect;
       const vbCenterX = vbWidth / 2;
       const vbCenterY = vbHeight / 2;
 
-      svg.attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`);
+      svg
+        .attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
 
-      // Centrar provisionalmente en el nuevo viewBox para medir su caja real
-      g.attr('transform', `translate(${vbCenterX}, ${vbCenterY})`);
+      // Diámetro objetivo sobre el eje limitante de la imagen
+      const limitingDiameter = Math.min(vbWidth, vbHeight) * CHART_MARGIN_FACTOR;
 
-      const bbox = g.node().getBBox();
-      if (!bbox || bbox.width <= 0 || bbox.height <= 0) {
-        return;
-      }
+      // Usamos un diámetro de referencia basado en el círculo exterior de las barras más un margen
+      // moderado para etiquetas exteriores, evitando que un único texto horizontal largo encoja todo.
+      const chartReferenceDiameter = (maxOuterRadius + 45) * 2;
+      const scale = limitingDiameter / chartReferenceDiameter;
 
-      // Eje limitante del fondo: si la imagen es apaisada (aspect > 1), limita el alto; si es vertical, limita el ancho.
-      const limitingSize = Math.min(vbWidth, vbHeight) * CHART_MARGIN_FACTOR;
-      const currentMaxSpan = Math.max(bbox.width, bbox.height);
-      const scale = limitingSize / currentMaxSpan;
-
-      // Centro geométrico real del bounding box respecto al origen del grupo
-      const bboxCenterX = bbox.x + bbox.width / 2;
-      const bboxCenterY = bbox.y + bbox.height / 2;
-
-      const tx = vbCenterX - bboxCenterX * scale;
-      const ty = vbCenterY - bboxCenterY * scale;
-
-      g.attr('transform', `translate(${tx}, ${ty}) scale(${scale})`);
+      g.attr('transform', `translate(${vbCenterX}, ${vbCenterY}) scale(${scale})`);
     }
 
     function renderSolarChart(rawData) {
@@ -683,7 +670,7 @@
           .text(labelText);
       });
 
-      fitChartContentToBackground(g);
+      fitChartContentToBackground(g, maxOuterRadius);
     }
 
     function parseWorkbookFirstThreeCols(arrayBuffer) {
@@ -818,7 +805,10 @@
 
         const svgElement = document.getElementById('solar-chart');
         const clonedSvg = svgElement.cloneNode(true);
+        const currentViewBox = svgElement.getAttribute('viewBox') || `0 0 ${pdfWidth} ${pdfHeight}`;
         clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clonedSvg.setAttribute('viewBox', currentViewBox);
+        clonedSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         clonedSvg.setAttribute('width', String(pdfWidth));
         clonedSvg.setAttribute('height', String(pdfHeight));
 
