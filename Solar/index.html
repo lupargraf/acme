@@ -297,8 +297,7 @@
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
 
-    // Porcentaje del eje limitante (ancho si la imagen es vertical, alto si es apaisada)
-    // que ocupará el diámetro de la gráfica (0.95 = 5% de margen)
+    // Fracción del eje limitante de la imagen de fondo que ocupará la gráfica (0.95 = 5% de margen)
     const CHART_MARGIN_FACTOR = 0.95;
 
     const DEFAULT_ASPECT_RATIO = 1;
@@ -479,35 +478,68 @@
     }
 
     /**
-     * Ajusta la escala y el centrado del grupo de la gráfica para que su diámetro
-     * ocupe CHART_MARGIN_FACTOR del eje limitante de la imagen de fondo
-     * (ancho si es vertical, alto si es apaisada).
+     * Calcula las dimensiones reales del conjunto de barras (independientemente de si las barras
+     * opuestas son iguales o desiguales), compara su relación de aspecto con la imagen de fondo
+     * y escala/centra la gráfica para inscribirla en CHART_MARGIN_FACTOR del eje limitante.
      */
-    function fitChartContentToBackground(g, maxOuterRadius) {
+    function fitChartToBackgroundGeometry(chartG, barsG) {
       const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
       const imgDims = (!hasSolidBg && currentImageDims && currentImageDims.width && currentImageDims.height)
         ? currentImageDims
         : { width: 1000, height: 1000 };
 
-      const aspect = imgDims.width / imgDims.height;
+      const imgAspect = imgDims.width / imgDims.height;
       const baseDim = 1000;
-      const vbWidth = aspect >= 1 ? baseDim * aspect : baseDim;
-      const vbHeight = aspect >= 1 ? baseDim : baseDim / aspect;
-      const vbCenterX = vbWidth / 2;
-      const vbCenterY = vbHeight / 2;
+      const vbWidth = imgAspect >= 1 ? baseDim * imgAspect : baseDim;
+      const vbHeight = imgAspect >= 1 ? baseDim : baseDim / imgAspect;
 
       svg
         .attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`)
         .attr('preserveAspectRatio', 'xMidYMid meet');
 
-      // Diámetro objetivo sobre el eje limitante (ancho en fondos verticales, alto en apaisados)
-      const limitingDiameter = Math.min(vbWidth, vbHeight) * CHART_MARGIN_FACTOR;
+      // Medimos el bounding box real de las barras ya construidas
+      const barsBBox = barsG.node().getBBox();
+      if (!barsBBox || barsBBox.width <= 0 || barsBBox.height <= 0) {
+        chartG.attr('transform', `translate(${vbWidth / 2}, ${vbHeight / 2})`);
+        return;
+      }
 
-      // Diámetro nominal de la gráfica a partir de su radio exterior máximo
-      const chartNominalDiameter = maxOuterRadius * 2;
-      const scale = limitingDiameter / chartNominalDiameter;
+      const barsW = barsBBox.width;
+      const barsH = barsBBox.height;
+      const barsAspect = barsW / barsH;
 
-      g.attr('transform', `translate(${vbCenterX}, ${vbCenterY}) scale(${scale})`);
+      // Eje limitante de la imagen: ancho si imgAspect < 1 (vertical), alto si imgAspect >= 1 (horizontal)
+      const maxBoxW = vbWidth * CHART_MARGIN_FACTOR;
+      const maxBoxH = vbHeight * CHART_MARGIN_FACTOR;
+
+      let scale;
+      if (imgAspect < 1) {
+        // Imagen vertical: tomamos el 95% del ancho como referencia principal,
+        // pero si la disposición de barras es más alta que ancha y superaría maxBoxH, ajustamos a maxBoxH.
+        scale = maxBoxW / barsW;
+        if (barsH * scale > maxBoxH) {
+          scale = maxBoxH / barsH;
+        }
+      } else {
+        // Imagen horizontal: tomamos el 95% del alto como referencia principal,
+        // pero si la disposición de barras es más ancha que alta y superaría maxBoxW, ajustamos a maxBoxW.
+        scale = maxBoxH / barsH;
+        if (barsW * scale > maxBoxW) {
+          scale = maxBoxW / barsW;
+        }
+      }
+
+      // Centro geométrico real de las barras (evita desplazamientos cuando una barra larga no tiene opuesta igual)
+      const barsCenterX = barsBBox.x + barsW / 2;
+      const barsCenterY = barsBBox.y + barsH / 2;
+
+      const targetCenterX = vbWidth / 2;
+      const targetCenterY = vbHeight / 2;
+
+      const tx = targetCenterX - barsCenterX * scale;
+      const ty = targetCenterY - barsCenterY * scale;
+
+      chartG.attr('transform', `translate(${tx}, ${ty}) scale(${scale})`);
     }
 
     function renderSolarChart(rawData) {
@@ -545,8 +577,9 @@
         ? Math.max(8, Math.min(16.5, innerArcWidth * 1.95))
         : Math.max(6.5, Math.min(12.5, innerArcWidth * 1.45));
 
-      const g = svg.append('g')
-        .attr('transform', 'translate(500, 500)');
+      const chartG = svg.append('g').attr('class', 'solar-chart-root');
+      const barsG = chartG.append('g').attr('class', 'bars-layer');
+      const labelsG = chartG.append('g').attr('class', 'labels-layer');
 
       // Centro transparente: no se dibuja círculo negro central
 
@@ -556,7 +589,7 @@
         .startAngle((d, i) => i * stepAngle)
         .endAngle((d, i) => i * stepAngle + barAngle);
 
-      g.selectAll('.bar')
+      barsG.selectAll('.bar')
         .data(data)
         .enter()
         .append('path')
@@ -618,7 +651,7 @@
             const x2 = Math.sin(normalizedAngle) * lineEndR;
             const y2 = -Math.cos(normalizedAngle) * lineEndR;
 
-            g.append('line')
+            labelsG.append('line')
               .attr('class', 'leader-line')
               .attr('x1', x1)
               .attr('y1', y1)
@@ -659,7 +692,7 @@
         const x = Math.sin(normalizedAngle) * radiusPos;
         const y = -Math.cos(normalizedAngle) * radiusPos;
 
-        g.append('text')
+        labelsG.append('text')
           .attr('class', 'bar-label')
           .attr('transform', `translate(${x}, ${y}) rotate(${finalRotation})`)
           .attr('text-anchor', textAnchor)
@@ -671,7 +704,7 @@
           .text(labelText);
       });
 
-      fitChartContentToBackground(g, maxOuterRadius);
+      fitChartToBackgroundGeometry(chartG, barsG);
     }
 
     function parseWorkbookFirstThreeCols(arrayBuffer) {
