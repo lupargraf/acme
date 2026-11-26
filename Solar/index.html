@@ -297,7 +297,8 @@
     const FONT_URL = 'https://lupargraf.github.io/acme/Solar/Abel-Regular.ttf';
     const CME_BG_URL = 'https://lupargraf.github.io/acme/Solar/fondosolar.jpg';
 
-    // Porcentaje del eje limitante (ancho o alto de la imagen) que ocupará la gráfica (0.95 = 5% de margen)
+    // Porcentaje del eje limitante (ancho si la imagen es vertical, alto si es apaisada)
+    // que ocupará el diámetro de la gráfica (0.95 = 5% de margen)
     const CHART_MARGIN_FACTOR = 0.95;
 
     const DEFAULT_ASPECT_RATIO = 1;
@@ -478,8 +479,9 @@
     }
 
     /**
-     * Escala y centra la gráfica dentro del viewBox correspondiente a la imagen de fondo,
-     * ocupando CHART_MARGIN_FACTOR del eje limitante (ancho si la imagen es vertical, alto si es apaisada).
+     * Ajusta la escala y el centrado del grupo de la gráfica para que su diámetro
+     * ocupe CHART_MARGIN_FACTOR del eje limitante de la imagen de fondo
+     * (ancho si es vertical, alto si es apaisada).
      */
     function fitChartContentToBackground(g, maxOuterRadius) {
       const hasSolidBg = Boolean(SOLID_BACKGROUNDS[currentBgMode]);
@@ -498,13 +500,12 @@
         .attr('viewBox', `0 0 ${vbWidth} ${vbHeight}`)
         .attr('preserveAspectRatio', 'xMidYMid meet');
 
-      // Diámetro objetivo sobre el eje limitante de la imagen
+      // Diámetro objetivo sobre el eje limitante (ancho en fondos verticales, alto en apaisados)
       const limitingDiameter = Math.min(vbWidth, vbHeight) * CHART_MARGIN_FACTOR;
 
-      // Usamos un diámetro de referencia basado en el círculo exterior de las barras más un margen
-      // moderado para etiquetas exteriores, evitando que un único texto horizontal largo encoja todo.
-      const chartReferenceDiameter = (maxOuterRadius + 45) * 2;
-      const scale = limitingDiameter / chartReferenceDiameter;
+      // Diámetro nominal de la gráfica a partir de su radio exterior máximo
+      const chartNominalDiameter = maxOuterRadius * 2;
+      const scale = limitingDiameter / chartNominalDiameter;
 
       g.attr('transform', `translate(${vbCenterX}, ${vbCenterY}) scale(${scale})`);
     }
@@ -522,7 +523,7 @@
         .sort((a, b) => (a.nivel - b.nivel) || (a.originalIndex - b.originalIndex));
 
       const innerRadius = Math.max(10, Math.min(260, currentInnerRadius));
-      const maxOuterRadius = Math.max(innerRadius + 120, 470);
+      const maxOuterRadius = Math.max(innerRadius + 120, 485);
 
       const maxScore = d3.max(data, d => d.puntuacion) || 100;
 
